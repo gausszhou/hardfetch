@@ -214,38 +214,6 @@ func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *system.SystemInfo, er
 	fmt.Fprintln(buffer)
 }
 
-func displaySystemInfo(noColors bool) {
-	info, err := system.GetSystemInfo()
-	if err != nil {
-		fmt.Printf("Error getting system info: %v\n", err)
-		return
-	}
-
-	fmt.Println("System Information:")
-	fmt.Println("------------------")
-
-	color := ""
-	if !noColors {
-		color = display.GetColorCode("cyan")
-	}
-
-	data := map[string]string{
-		"OS":       info.OS,
-		"Arch":     info.Arch,
-		"Kernel":   info.Kernel,
-		"Hostname": info.Hostname,
-		"Uptime":   info.FormatUptime(),
-	}
-
-	for label, value := range data {
-		if noColors {
-			fmt.Printf("%-15s: %s\n", label, value)
-		} else {
-			fmt.Println(display.FormatInfoWithColor(label, value, color))
-		}
-	}
-	fmt.Println()
-}
 
 func displayNetworkInfoToBuffer(buffer *bytes.Buffer, info *network.NetworkInfo, err error, noColors bool) {
 	if err != nil {
@@ -278,37 +246,6 @@ func displayNetworkInfoToBuffer(buffer *bytes.Buffer, info *network.NetworkInfo,
 	fmt.Fprintln(buffer)
 }
 
-func displayNetworkInfo(noColors bool) {
-	info, err := network.GetNetworkInfo()
-	if err != nil {
-		fmt.Printf("Error getting network info: %v\n", err)
-		return
-	}
-
-	fmt.Println("Network Information:")
-	fmt.Println("--------------------")
-
-	color := ""
-	if !noColors {
-		color = display.GetColorCode("blue")
-	}
-
-	data := map[string]string{
-		"Hostname":   info.Hostname,
-		"Local IP":   info.LocalIP,
-		"Public IP":  info.PublicIP,
-		"Interfaces": info.FormatInterfaces(),
-	}
-
-	for label, value := range data {
-		if noColors {
-			fmt.Printf("%-15s: %s\n", label, value)
-		} else {
-			fmt.Println(display.FormatInfoWithColor(label, value, color))
-		}
-	}
-	fmt.Println()
-}
 
 func displayCPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo, err error, noColors bool) {
 	if err != nil || hwInfo.CPU == nil {
@@ -343,39 +280,6 @@ func displayCPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo,
 	fmt.Fprintln(buffer)
 }
 
-func displayCPUInfo(noColors bool) {
-	hwInfo, err := hardware.GetHardwareInfo()
-	if err != nil || hwInfo.CPU == nil {
-		fmt.Printf("Error getting CPU info: %v\n", err)
-		return
-	}
-
-	cpu := hwInfo.CPU
-	fmt.Println("CPU Information:")
-	fmt.Println("----------------")
-
-	color := ""
-	if !noColors {
-		color = display.GetColorCode("yellow")
-	}
-
-	data := map[string]string{
-		"Model":        cpu.Model,
-		"Cores":        fmt.Sprintf("%d", cpu.Cores),
-		"Threads":      fmt.Sprintf("%d", cpu.Threads),
-		"Frequency":    cpu.Frequency,
-		"Architecture": cpu.Architecture,
-	}
-
-	for label, value := range data {
-		if noColors {
-			fmt.Printf("%-15s: %s\n", label, value)
-		} else {
-			fmt.Println(display.FormatInfoWithColor(label, value, color))
-		}
-	}
-	fmt.Println()
-}
 
 func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo, err error, noColors bool) {
 	if err != nil || hwInfo.GPUs == nil || len(hwInfo.GPUs) == 0 {
@@ -425,54 +329,6 @@ func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo,
 	fmt.Fprintln(buffer)
 }
 
-func displayGPUInfo(noColors bool) {
-	hwInfo, err := hardware.GetHardwareInfo()
-	if err != nil || hwInfo.GPUs == nil || len(hwInfo.GPUs) == 0 {
-		fmt.Printf("Error getting GPU info: %v\n", err)
-		return
-	}
-
-	fmt.Println("GPU Information:")
-	fmt.Println("----------------")
-
-	color := ""
-	if !noColors {
-		color = display.GetColorCode("yellow")
-	}
-
-	for i, gpu := range hwInfo.GPUs {
-		if i > 0 {
-			fmt.Println()
-		}
-
-		gpuLabel := "GPU"
-		if len(hwInfo.GPUs) > 1 {
-			gpuLabel = fmt.Sprintf("GPU %d", i+1)
-		}
-
-		data := map[string]string{
-			"Name":   gpu.Name,
-			"Vendor": gpu.Vendor,
-			"VRAM":   gpu.FormatVRAM(),
-			"Driver": gpu.DriverVersion,
-		}
-
-		if noColors {
-			fmt.Printf("%s:\n", gpuLabel)
-		} else {
-			fmt.Printf("%s%s%s:\n", color, gpuLabel, "\033[0m")
-		}
-
-		for label, value := range data {
-			if noColors {
-				fmt.Printf("  %-15s: %s\n", label, value)
-			} else {
-				fmt.Printf("  %s%-15s%s: %s\n", color, label, "\033[0m", value)
-			}
-		}
-	}
-	fmt.Println()
-}
 
 func displayMemoryInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo, err error, noColors bool) {
 	if err != nil || hwInfo.Memory == nil {
@@ -506,38 +362,6 @@ func displayMemoryInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareIn
 	fmt.Fprintln(buffer)
 }
 
-func displayMemoryInfo(noColors bool) {
-	hwInfo, err := hardware.GetHardwareInfo()
-	if err != nil || hwInfo.Memory == nil {
-		fmt.Printf("Error getting memory info: %v\n", err)
-		return
-	}
-
-	mem := hwInfo.Memory
-	fmt.Println("Memory Information:")
-	fmt.Println("-------------------")
-
-	color := ""
-	if !noColors {
-		color = display.GetColorCode("green")
-	}
-
-	data := map[string]string{
-		"Total":     mem.FormatTotal(),
-		"Used":      mem.FormatUsed(),
-		"Available": mem.FormatAvailable(),
-		"Free":      mem.FormatFree(),
-	}
-
-	for label, value := range data {
-		if noColors {
-			fmt.Printf("%-15s: %s\n", label, value)
-		} else {
-			fmt.Println(display.FormatInfoWithColor(label, value, color))
-		}
-	}
-	fmt.Println()
-}
 
 func displayDiskInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo, err error, noColors bool) {
 	if err != nil || hwInfo.Disks == nil || len(hwInfo.Disks) == 0 {
@@ -586,50 +410,4 @@ func displayDiskInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo
 	}
 }
 
-func displayDiskInfo(noColors bool) {
-	hwInfo, err := hardware.GetHardwareInfo()
-	if err != nil || hwInfo.Disks == nil || len(hwInfo.Disks) == 0 {
-		fmt.Printf("Error getting disk info: %v\n", err)
-		return
-	}
 
-	fmt.Println("Disk Information:")
-	fmt.Println("-----------------")
-
-	color := ""
-	if !noColors {
-		color = display.GetColorCode("magenta")
-	}
-
-	for _, disk := range hwInfo.Disks {
-		driveLabel := "Drive"
-		if disk.Drive != "" {
-			driveLabel = fmt.Sprintf("Drive %s", disk.Drive)
-		}
-
-		if noColors {
-			fmt.Printf("%s:\n", driveLabel)
-		} else {
-			fmt.Printf("%s%s%s:\n", color, driveLabel, "\033[0m")
-		}
-
-		fields := []struct {
-			label string
-			value string
-		}{
-			{"Total", disk.FormatTotal()},
-			{"Used", disk.FormatUsed()},
-			{"Free", disk.FormatFree()},
-		}
-
-		for _, field := range fields {
-			if noColors {
-				fmt.Printf("  %-15s: %s\n", field.label, field.value)
-			} else {
-				fmt.Printf("  %s%-15s%s: %s\n", color, field.label, "\033[0m", field.value)
-			}
-		}
-
-		fmt.Println()
-	}
-}
