@@ -7,22 +7,18 @@ import (
 
 // SystemInfo represents system information
 type SystemInfo struct {
-	OS        string
-	Arch      string
-	Kernel    string
-	Hostname  string
-	Uptime    time.Duration
-	NumCPU    int
-	GoVersion string
+	OS       string
+	Arch     string
+	Kernel   string
+	Hostname string
+	Uptime   time.Duration
 }
 
 // GetSystemInfo collects system information
 func GetSystemInfo() (*SystemInfo, error) {
 	info := &SystemInfo{
-		OS:        runtime.GOOS,
-		Arch:      runtime.GOARCH,
-		NumCPU:    runtime.NumCPU(),
-		GoVersion: runtime.Version(),
+		OS:   runtime.GOOS,
+		Arch: runtime.GOARCH,
 	}
 
 	// Get hostname

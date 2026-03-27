@@ -226,13 +226,11 @@ func displaySystemInfo(noColors bool) {
 	}
 
 	data := map[string]string{
-		"OS":         info.OS,
-		"Arch":       info.Arch,
-		"Kernel":     info.Kernel,
-		"Hostname":   info.Hostname,
-		"Uptime":     info.FormatUptime(),
-		"CPU Cores":  fmt.Sprintf("%d", info.NumCPU),
-		"Go Version": info.GoVersion,
+		"OS":       info.OS,
+		"Arch":     info.Arch,
+		"Kernel":   info.Kernel,
+		"Hostname": info.Hostname,
+		"Uptime":   info.FormatUptime(),
 	}
 
 	for label, value := range data {
