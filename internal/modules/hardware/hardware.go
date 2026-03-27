@@ -29,11 +29,20 @@ type DiskInfo struct {
 	Free  uint64
 }
 
+// GPUInfo represents GPU information
+type GPUInfo struct {
+	Name          string
+	Vendor        string
+	VRAM          uint64 // Video memory in bytes
+	DriverVersion string
+}
+
 // HardwareInfo represents all hardware information
 type HardwareInfo struct {
 	CPU    *CPUInfo
 	Memory *MemoryInfo
 	Disks  []*DiskInfo
+	GPUs   []*GPUInfo
 }
 
 // GetHardwareInfo collects hardware information
@@ -53,6 +62,11 @@ func GetHardwareInfo() (*HardwareInfo, error) {
 	// Get disk info
 	if disks, err := getDiskInfo(); err == nil {
 		info.Disks = disks
+	}
+
+	// Get GPU info
+	if gpus, err := getGPUInfo(); err == nil {
+		info.GPUs = gpus
 	}
 
 	return info, nil
@@ -86,6 +100,16 @@ func (d *DiskInfo) FormatUsed() string {
 
 func (d *DiskInfo) FormatFree() string {
 	return formatBytes(d.Free)
+}
+
+// FormatVRAM formats GPU memory size in human readable format
+func (g *GPUInfo) FormatVRAM() string {
+	return formatBytes(g.VRAM)
+}
+
+// getGPUInfo collects GPU information (platform-specific implementation)
+func getGPUInfo() ([]*GPUInfo, error) {
+	return getGPUInfoImpl()
 }
 
 func formatBytes(bytes uint64) string {

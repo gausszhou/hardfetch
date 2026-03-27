@@ -78,6 +78,7 @@ func printAvailableModules() {
 	fmt.Println("Available modules:")
 	fmt.Println("  system    - System information (OS, kernel, hostname, uptime)")
 	fmt.Println("  cpu       - CPU information (model, cores, frequency)")
+	fmt.Println("  gpu       - GPU information (name, vendor, VRAM, driver)")
 	fmt.Println("  memory    - Memory information (total, used, available)")
 	fmt.Println("  disk      - Disk information (total, used, free)")
 	fmt.Println("  network   - Network information (IP addresses, interfaces)")
@@ -113,6 +114,8 @@ func runHardfetch(modulesStr string, showAll, noColors bool) {
 			displaySystemInfo(noColors)
 		case "cpu":
 			displayCPUInfo(noColors)
+		case "gpu":
+			displayGPUInfo(noColors)
 		case "memory":
 			displayMemoryInfo(noColors)
 		case "disk":
@@ -186,7 +189,7 @@ func displayUserInfo(noColors bool) {
 
 func getModulesToDisplay(modulesStr string, showAll bool) []string {
 	if showAll {
-		return []string{"system", "cpu", "memory", "disk", "network", "software", "user"}
+		return []string{"system", "cpu", "gpu", "memory", "disk", "network", "software", "user"}
 	}
 
 	if modulesStr == "" {
@@ -337,6 +340,58 @@ func displayCPUInfo(noColors bool) {
 			fmt.Printf("%-15s: %s\n", label, value)
 		} else {
 			fmt.Println(display.FormatInfoWithColor(label, value, color))
+		}
+	}
+	fmt.Println()
+}
+
+func displayGPUInfo(noColors bool) {
+	hwInfo, err := hardware.GetHardwareInfo()
+	if err != nil || hwInfo.GPUs == nil || len(hwInfo.GPUs) == 0 {
+		fmt.Printf("Error getting GPU info: %v\n", err)
+		return
+	}
+
+	fmt.Println("GPU Information:")
+	fmt.Println("----------------")
+
+	color := ""
+	if !noColors {
+		color = display.GetColorCode("yellow")
+	}
+
+	for i, gpu := range hwInfo.GPUs {
+		if i > 0 {
+			fmt.Println()
+		}
+
+		// Show GPU number if multiple GPUs
+		gpuLabel := "GPU"
+		if len(hwInfo.GPUs) > 1 {
+			gpuLabel = fmt.Sprintf("GPU %d", i+1)
+		}
+
+		data := map[string]string{
+			"Name":   gpu.Name,
+			"Vendor": gpu.Vendor,
+			"VRAM":   gpu.FormatVRAM(),
+			"Driver": gpu.DriverVersion,
+		}
+
+		// Display GPU label
+		if noColors {
+			fmt.Printf("%s:\n", gpuLabel)
+		} else {
+			fmt.Printf("%s%s%s:\n", color, gpuLabel, "\033[0m")
+		}
+
+		// Display GPU info with indentation
+		for label, value := range data {
+			if noColors {
+				fmt.Printf("  %-15s: %s\n", label, value)
+			} else {
+				fmt.Printf("  %s%-15s%s: %s\n", color, label, "\033[0m", value)
+			}
 		}
 	}
 	fmt.Println()

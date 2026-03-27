@@ -39,3 +39,33 @@ func getDiskInfo() ([]*DiskInfo, error) {
 		Free:  128 * 1024 * 1024 * 1024, // 128 GB
 	}}, nil
 }
+
+// getGPUInfoImpl collects GPU information on non-Windows platforms
+func getGPUInfoImpl() ([]*GPUInfo, error) {
+	// Generic implementation for non-Windows platforms
+	// In a real implementation, you would use system-specific calls
+	// For Linux: read from /sys/class/drm, lspci, or nvidia-smi
+	// For macOS: use IOKit or system_profiler
+
+	// Try to detect GPU based on OS
+	var gpuName, vendor string
+
+	switch runtime.GOOS {
+	case "linux":
+		gpuName = "Linux GPU"
+		vendor = "Open Source"
+	case "darwin":
+		gpuName = "Apple GPU"
+		vendor = "Apple"
+	default:
+		gpuName = "Generic GPU"
+		vendor = "Unknown"
+	}
+
+	return []*GPUInfo{{
+		Name:          gpuName,
+		Vendor:        vendor,
+		VRAM:          0,
+		DriverVersion: "System Driver",
+	}}, nil
+}

@@ -4,6 +4,7 @@ package hardware
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -13,6 +14,7 @@ var (
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
 	advapi32 = syscall.NewLazyDLL("advapi32.dll")
 	psapi    = syscall.NewLazyDLL("psapi.dll")
+	setupapi = syscall.NewLazyDLL("setupapi.dll")
 
 	procGlobalMemoryStatusEx = kernel32.NewProc("GlobalMemoryStatusEx")
 	procGetDiskFreeSpaceExW  = kernel32.NewProc("GetDiskFreeSpaceExW")
@@ -273,6 +275,145 @@ func getDiskInfoFallback() ([]*DiskInfo, error) {
 		Free:  freeBytes,
 		Used:  totalBytes - freeBytes,
 	}}, nil
+}
+
+// getGPUInfoImpl collects GPU information on Windows
+func getGPUInfoImpl() ([]*GPUInfo, error) {
+	// Try to get GPU info using Windows API
+	return getGPUInfoFromAPI()
+}
+
+func getGPUInfoFromAPI() ([]*GPUInfo, error) {
+	var gpus []*GPUInfo
+
+	// Try to get GPU info using WMI (Windows Management Instrumentation)
+	// This uses PowerShell to query Win32_VideoController
+	gpus = getGPUInfoFromWMI()
+
+	// If WMI failed, use fallback
+	if len(gpus) == 0 {
+		gpus = append(gpus, &GPUInfo{
+			Name:          "Windows Display Adapter",
+			Vendor:        "Microsoft",
+			VRAM:          0,
+			DriverVersion: "Windows Driver",
+		})
+	}
+
+	return gpus, nil
+}
+
+func getGPUInfoFromWMI() []*GPUInfo {
+	var gpus []*GPUInfo
+
+	// Use PowerShell to query WMI for GPU information
+	// Get-CimInstance is more modern than Get-WmiObject
+	cmd := exec.Command("powershell", "-Command",
+		`Get-CimInstance Win32_VideoController | Select-Object Name, AdapterCompatibility, AdapterRAM, DriverVersion, @{Name="AdapterRAMGB";Expression={[math]::Round($_.AdapterRAM/1GB, 2)}} | ConvertTo-Json`)
+
+	output, err := cmd.Output()
+	if err != nil {
+		// Try alternative command
+		cmd = exec.Command("powershell", "-Command",
+			`Get-WmiObject Win32_VideoController | Select-Object Name, AdapterCompatibility, AdapterRAM, DriverVersion | ConvertTo-Json`)
+		output, err = cmd.Output()
+		if err != nil {
+			// WMI query failed, return empty list
+			return gpus
+		}
+	}
+
+	outputStr := string(output)
+
+	// Simple JSON parsing for the array
+	// Look for GPU entries
+	lines := strings.Split(outputStr, "\n")
+	inGPU := false
+	currentGPU := &GPUInfo{}
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		if line == "{" {
+			// Start of a GPU object
+			inGPU = true
+			currentGPU = &GPUInfo{}
+		} else if line == "}" || line == "}," {
+			// End of a GPU object
+			if inGPU && currentGPU.Name != "" {
+				// Clean up vendor name
+				if currentGPU.Vendor == "" {
+					currentGPU.Vendor = detectVendorFromName(currentGPU.Name)
+				}
+				gpus = append(gpus, currentGPU)
+			}
+			inGPU = false
+		} else if inGPU {
+			// Parse GPU properties
+			if strings.Contains(line, "\"Name\"") {
+				currentGPU.Name = extractJSONValue(line, "Name")
+			} else if strings.Contains(line, "\"AdapterCompatibility\"") {
+				currentGPU.Vendor = extractJSONValue(line, "AdapterCompatibility")
+			} else if strings.Contains(line, "\"AdapterRAM\"") {
+				vramStr := extractJSONValue(line, "AdapterRAM")
+				if vramStr != "" {
+					var vram uint64
+					fmt.Sscanf(vramStr, "%d", &vram)
+					currentGPU.VRAM = vram
+				}
+			} else if strings.Contains(line, "\"DriverVersion\"") {
+				currentGPU.DriverVersion = extractJSONValue(line, "DriverVersion")
+			} else if strings.Contains(line, "\"AdapterRAMGB\"") {
+				// If we have the GB value, use it
+				vramGBStr := extractJSONValue(line, "AdapterRAMGB")
+				if vramGBStr != "" && currentGPU.VRAM == 0 {
+					var vramGB float64
+					fmt.Sscanf(vramGBStr, "%f", &vramGB)
+					currentGPU.VRAM = uint64(vramGB * 1024 * 1024 * 1024) // Convert GB to bytes
+				}
+			}
+		}
+	}
+
+	return gpus
+}
+
+func extractJSONValue(line, key string) string {
+	keyPattern := "\"" + key + "\":"
+	if !strings.Contains(line, keyPattern) {
+		return ""
+	}
+
+	// Find the value after the key
+	parts := strings.SplitN(line, keyPattern, 2)
+	if len(parts) < 2 {
+		return ""
+	}
+
+	value := strings.TrimSpace(parts[1])
+	// Remove trailing comma if present
+	value = strings.TrimSuffix(value, ",")
+	// Remove quotes
+	value = strings.Trim(value, "\"")
+
+	return value
+}
+
+func detectVendorFromName(name string) string {
+	name = strings.ToLower(name)
+
+	switch {
+	case strings.Contains(name, "nvidia"):
+		return "NVIDIA"
+	case strings.Contains(name, "amd") || strings.Contains(name, "radeon"):
+		return "AMD"
+	case strings.Contains(name, "intel"):
+		return "Intel"
+	case strings.Contains(name, "microsoft"):
+		return "Microsoft"
+	default:
+		return "Unknown"
+	}
 }
 
 func getDiskInfo() ([]*DiskInfo, error) {
