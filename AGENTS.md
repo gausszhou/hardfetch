@@ -12,15 +12,20 @@ This is a Go CLI tool called `hardfetch` - a fastfetch/neofetch-like system info
 
 Hardfetch aims to be a fast, customizable system information tool similar to fastfetch/neofetch, but written in Go for better cross-platform compatibility and performance. Key features include:
 
-1. **System Information**: Display OS, kernel, hostname, uptime, etc.
-2. **Hardware Information**: CPU, GPU, memory, disk, battery info
-3. **Software Information**: Package manager info, installed packages, services
+1. **System Information**: Display OS, kernel, hostname, uptime
+2. **Hardware Information**: 
+   - CPU: model, cores, threads, frequency, architecture
+   - GPU: name, vendor, VRAM, driver version (Windows WMI support)
+   - Memory: total, used, available, free
+   - Disk: multi-disk support with drive letters (Windows) or mount points
+3. **Software Information**: Package manager info, installed packages, services, processes
 4. **Network Information**: Local/Public IP, network interfaces
 5. **User Information**: Current user, shell, environment variables
 6. **Customizable Display**: ASCII logos, color themes, output formatting
 7. **Cross-platform**: Support Windows, Linux, macOS
 8. **High Performance**: Concurrent information collection
 9. **Configurable**: JSON/YAML config files, command-line options
+10. **Modular Design**: Select specific modules to display
 
 ## Build Commands
 
@@ -192,7 +197,7 @@ hardfetch/
 │   ├── cli/                # CLI-specific logic
 │   ├── modules/            # Information collection modules
 │   │   ├── system/         # System information
-│   │   ├── hardware/       # Hardware information
+│   │   ├── hardware/       # Hardware information (CPU, GPU, memory, disk)
 │   │   ├── software/       # Software information
 │   │   ├── network/        # Network information
 │   │   └── user/           # User information
