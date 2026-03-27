@@ -196,19 +196,22 @@ func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *system.SystemInfo, er
 		color = display.GetColorCode("cyan")
 	}
 
-	data := map[string]string{
-		"OS":       info.OS,
-		"Arch":     info.Arch,
-		"Kernel":   info.Kernel,
-		"Hostname": info.Hostname,
-		"Uptime":   info.FormatUptime(),
+	fields := []struct {
+		label string
+		value string
+	}{
+		{"OS", info.OS},
+		{"Arch", info.Arch},
+		{"Kernel", info.Kernel},
+		{"Hostname", info.Hostname},
+		{"Uptime", info.FormatUptime()},
 	}
 
-	for label, value := range data {
+	for _, field := range fields {
 		if noColors {
-			fmt.Fprintf(buffer, "%-15s: %s\n", label, value)
+			fmt.Fprintf(buffer, "%-15s: %s\n", field.label, field.value)
 		} else {
-			fmt.Fprintln(buffer, display.FormatInfoWithColor(label, value, color))
+			fmt.Fprintf(buffer, "%s%-15s%s: %s\n", color, field.label, "\033[0m", field.value)
 		}
 	}
 	fmt.Fprintln(buffer)
@@ -229,18 +232,21 @@ func displayNetworkInfoToBuffer(buffer *bytes.Buffer, info *network.NetworkInfo,
 		color = display.GetColorCode("blue")
 	}
 
-	data := map[string]string{
-		"Hostname":   info.Hostname,
-		"Local IP":   info.LocalIP,
-		"Public IP":  info.PublicIP,
-		"Interfaces": info.FormatInterfaces(),
+	fields := []struct {
+		label string
+		value string
+	}{
+		{"Hostname", info.Hostname},
+		{"Local IP", info.LocalIP},
+		{"Public IP", info.PublicIP},
+		{"Interfaces", info.FormatInterfaces()},
 	}
 
-	for label, value := range data {
+	for _, field := range fields {
 		if noColors {
-			fmt.Fprintf(buffer, "%-15s: %s\n", label, value)
+			fmt.Fprintf(buffer, "%-15s: %s\n", field.label, field.value)
 		} else {
-			fmt.Fprintln(buffer, display.FormatInfoWithColor(label, value, color))
+			fmt.Fprintf(buffer, "%s%-15s%s: %s\n", color, field.label, "\033[0m", field.value)
 		}
 	}
 	fmt.Fprintln(buffer)
@@ -262,19 +268,22 @@ func displayCPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo,
 		color = display.GetColorCode("yellow")
 	}
 
-	data := map[string]string{
-		"Model":        cpu.Model,
-		"Cores":        fmt.Sprintf("%d", cpu.Cores),
-		"Threads":      fmt.Sprintf("%d", cpu.Threads),
-		"Frequency":    cpu.Frequency,
-		"Architecture": cpu.Architecture,
+	fields := []struct {
+		label string
+		value string
+	}{
+		{"Model", cpu.Model},
+		{"Cores", fmt.Sprintf("%d", cpu.Cores)},
+		{"Threads", fmt.Sprintf("%d", cpu.Threads)},
+		{"Frequency", cpu.Frequency},
+		{"Architecture", cpu.Architecture},
 	}
 
-	for label, value := range data {
+	for _, field := range fields {
 		if noColors {
-			fmt.Fprintf(buffer, "%-15s: %s\n", label, value)
+			fmt.Fprintf(buffer, "%-15s: %s\n", field.label, field.value)
 		} else {
-			fmt.Fprintln(buffer, display.FormatInfoWithColor(label, value, color))
+			fmt.Fprintf(buffer, "%s%-15s%s: %s\n", color, field.label, "\033[0m", field.value)
 		}
 	}
 	fmt.Fprintln(buffer)
@@ -305,11 +314,14 @@ func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo,
 			gpuLabel = fmt.Sprintf("GPU %d", i+1)
 		}
 
-		data := map[string]string{
-			"Name":   gpu.Name,
-			"Vendor": gpu.Vendor,
-			"VRAM":   gpu.FormatVRAM(),
-			"Driver": gpu.DriverVersion,
+		fields := []struct {
+			label string
+			value string
+		}{
+			{"Name", gpu.Name},
+			{"Vendor", gpu.Vendor},
+			{"VRAM", gpu.FormatVRAM()},
+			{"Driver", gpu.DriverVersion},
 		}
 
 		if noColors {
@@ -318,11 +330,11 @@ func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo,
 			fmt.Fprintf(buffer, "%s%s%s:\n", color, gpuLabel, "\033[0m")
 		}
 
-		for label, value := range data {
+		for _, field := range fields {
 			if noColors {
-				fmt.Fprintf(buffer, "  %-15s: %s\n", label, value)
+				fmt.Fprintf(buffer, "  %-15s: %s\n", field.label, field.value)
 			} else {
-				fmt.Fprintf(buffer, "  %s%-15s%s: %s\n", color, label, "\033[0m", value)
+				fmt.Fprintf(buffer, "  %s%-15s%s: %s\n", color, field.label, "\033[0m", field.value)
 			}
 		}
 	}
@@ -345,18 +357,21 @@ func displayMemoryInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareIn
 		color = display.GetColorCode("green")
 	}
 
-	data := map[string]string{
-		"Total":     mem.FormatTotal(),
-		"Used":      mem.FormatUsed(),
-		"Available": mem.FormatAvailable(),
-		"Free":      mem.FormatFree(),
+	fields := []struct {
+		label string
+		value string
+	}{
+		{"Total", mem.FormatTotal()},
+		{"Used", mem.FormatUsed()},
+		{"Available", mem.FormatAvailable()},
+		{"Free", mem.FormatFree()},
 	}
 
-	for label, value := range data {
+	for _, field := range fields {
 		if noColors {
-			fmt.Fprintf(buffer, "%-15s: %s\n", label, value)
+			fmt.Fprintf(buffer, "%-15s: %s\n", field.label, field.value)
 		} else {
-			fmt.Fprintln(buffer, display.FormatInfoWithColor(label, value, color))
+			fmt.Fprintf(buffer, "%s%-15s%s: %s\n", color, field.label, "\033[0m", field.value)
 		}
 	}
 	fmt.Fprintln(buffer)
