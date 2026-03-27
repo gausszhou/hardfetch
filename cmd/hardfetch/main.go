@@ -10,9 +10,7 @@ import (
 	"hardfetch/internal/display"
 	"hardfetch/internal/modules/hardware"
 	"hardfetch/internal/modules/network"
-	"hardfetch/internal/modules/software"
 	"hardfetch/internal/modules/system"
-	"hardfetch/internal/modules/user"
 )
 
 func main() {
@@ -82,8 +80,6 @@ func printAvailableModules() {
 	fmt.Println("  memory    - Memory information (total, used, available)")
 	fmt.Println("  disk      - Disk information (total, used, free)")
 	fmt.Println("  network   - Network information (IP addresses, interfaces)")
-	fmt.Println("  software  - Software information (shell, editor, packages)")
-	fmt.Println("  user      - User information (username, shell, home directory)")
 }
 
 func generateConfig() {
@@ -122,10 +118,6 @@ func runHardfetch(modulesStr string, showAll, noColors bool) {
 			displayDiskInfo(noColors)
 		case "network":
 			displayNetworkInfo(noColors)
-		case "software":
-			displaySoftwareInfo(noColors)
-		case "user":
-			displayUserInfo(noColors)
 		default:
 			fmt.Printf("Unknown module: %s\n", module)
 		}
@@ -133,63 +125,9 @@ func runHardfetch(modulesStr string, showAll, noColors bool) {
 	}
 }
 
-func displayUserInfo(noColors bool) {
-	info, err := user.GetUserInfo()
-	if err != nil {
-		fmt.Printf("Error getting user info: %v\n", err)
-		return
-	}
-
-	fmt.Println("User Information:")
-	fmt.Println("-----------------")
-
-	color := ""
-	if !noColors {
-		color = display.GetColorCode("cyan")
-	}
-
-	data := map[string]string{
-		"Username": info.Username,
-		"Name":     info.Name,
-		"User ID":  info.UserID,
-		"Group ID": info.GroupID,
-		"Home Dir": info.HomeDir,
-		"Shell":    info.Shell,
-		"Hostname": info.Hostname,
-	}
-
-	for label, value := range data {
-		if value == "" {
-			continue
-		}
-		if noColors {
-			fmt.Printf("%-15s: %s\n", label, value)
-		} else {
-			fmt.Println(display.FormatInfoWithColor(label, value, color))
-		}
-	}
-
-	// Show a few important environment variables
-	fmt.Println()
-	fmt.Println("Environment:")
-	fmt.Println("------------")
-
-	envVars := []string{"PATH", "HOME", "USER", "SHELL", "EDITOR", "TERM"}
-	for _, key := range envVars {
-		if value, ok := info.Environment[key]; ok {
-			if noColors {
-				fmt.Printf("%-15s: %s\n", key, value)
-			} else {
-				fmt.Println(display.FormatInfoWithColor(key, value, color))
-			}
-		}
-	}
-	fmt.Println()
-}
-
 func getModulesToDisplay(modulesStr string, showAll bool) []string {
 	if showAll {
-		return []string{"system", "cpu", "gpu", "memory", "disk", "network", "software", "user"}
+		return []string{"system", "cpu", "gpu", "memory", "disk", "network"}
 	}
 
 	if modulesStr == "" {
@@ -271,39 +209,6 @@ func displayNetworkInfo(noColors bool) {
 	for label, value := range data {
 		if noColors {
 			fmt.Printf("%-15s: %s\n", label, value)
-		} else {
-			fmt.Println(display.FormatInfoWithColor(label, value, color))
-		}
-	}
-	fmt.Println()
-}
-
-func displaySoftwareInfo(noColors bool) {
-	info, err := software.GetSoftwareInfo()
-	if err != nil {
-		fmt.Printf("Error getting software info: %v\n", err)
-		return
-	}
-
-	fmt.Println("Software Information:")
-	fmt.Println("---------------------")
-
-	color := ""
-	if !noColors {
-		color = display.GetColorCode("green")
-	}
-
-	data := map[string]string{
-		"Shell":            info.Shell,
-		"Editor":           info.Editor,
-		"Go Version":       info.GoVersion,
-		"Processes":        fmt.Sprintf("%d", info.ProcessCount),
-		"Package Managers": info.FormatPackageManagers(),
-	}
-
-	for label, value := range data {
-		if noColors {
-			fmt.Printf("%-20s: %s\n", label, value)
 		} else {
 			fmt.Println(display.FormatInfoWithColor(label, value, color))
 		}

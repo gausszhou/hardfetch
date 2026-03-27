@@ -18,14 +18,12 @@ Hardfetch aims to be a fast, customizable system information tool similar to fas
    - GPU: name, vendor, VRAM, driver version (Windows WMI support)
    - Memory: total, used, available, free
    - Disk: multi-disk support with drive letters (Windows) or mount points
-3. **Software Information**: Package manager info, installed packages, services, processes
-4. **Network Information**: Local/Public IP, network interfaces
-5. **User Information**: Current user, shell, environment variables
-6. **Customizable Display**: ASCII logos, color themes, output formatting
-7. **Cross-platform**: Support Windows, Linux, macOS
-8. **High Performance**: Concurrent information collection
-9. **Configurable**: JSON/YAML config files, command-line options
-10. **Modular Design**: Select specific modules to display
+3. **Network Information**: Local/Public IP, network interfaces
+4. **Customizable Display**: ASCII logos, color themes, output formatting
+5. **Cross-platform**: Support Windows, Linux, macOS
+6. **High Performance**: Concurrent information collection
+7. **Configurable**: JSON/YAML config files, command-line options
+8. **Modular Design**: Select specific modules to display
 
 ## Build Commands
 
@@ -198,9 +196,7 @@ hardfetch/
 │   ├── modules/            # Information collection modules
 │   │   ├── system/         # System information
 │   │   ├── hardware/       # Hardware information (CPU, GPU, memory, disk)
-│   │   ├── software/       # Software information
-│   │   ├── network/        # Network information
-│   │   └── user/           # User information
+│   │   └── network/        # Network information
 │   ├── display/            # Display formatting
 │   └── utils/              # Utility functions
 ├── configs/                # Configuration files
@@ -270,7 +266,7 @@ go build -trimpath -o fe-cli cmd/fe-cli/main.go
 
 ### Adding a New Module
 1. Create module implementation in `internal/modules/`
-2. Add module to the appropriate category (system, hardware, software, network, user)
+2. Add module to the appropriate category (system, hardware, network)
 3. Update `cmd/hardfetch/main.go` to include the module in display functions
 4. Write tests for the module
 5. Update help text and documentation

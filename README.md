@@ -10,9 +10,7 @@ A fastfetch/neofetch-like system information tool written in Go.
   - GPU: name, vendor, VRAM, driver version (Windows WMI support)
   - Memory: total, used, available, free
   - Disk: multi-disk support with drive letters (Windows) or mount points
-- **Software Information**: shell, editor, Go version, package managers, process count
 - **Network Information**: hostname, local IP, public IP, network interfaces
-- **User Information**: username, user ID, group ID, home directory, shell, environment
 - **Customizable Display**: ASCII logos, color themes, output formatting
 - **Cross-platform**: Support Windows, Linux, macOS
 - **High Performance**: Concurrent information collection
@@ -79,8 +77,6 @@ hardfetch --list-modules
 - **memory**: Total, used, available, and free memory
 - **disk**: Multi-disk information with drive letters/mount points
 - **network**: Hostname, local IP, public IP, network interfaces
-- **software**: Shell, editor, Go version, package managers, process count
-- **user**: Username, user ID, group ID, home directory, shell, environment variables
 
 ## Development
 
@@ -152,9 +148,7 @@ hardfetch/
 │   │   │   ├── hardware.go          # Common hardware interface
 │   │   │   ├── hardware_windows.go  # Windows-specific implementations
 │   │   │   └── hardware_other.go    # Non-Windows implementations
-│   │   ├── software/       # Software information
-│   │   ├── network/        # Network information
-│   │   └── user/           # User information
+│   │   └── network/        # Network information
 │   ├── display/            # Display formatting
 │   │   ├── ascii.go        # ASCII art rendering
 │   │   ├── colors.go       # Color support
@@ -263,24 +257,6 @@ Hostname       : DESKTOP-EXAMPLE
 Local IP       : 192.168.1.100
 Public IP      : 203.0.113.1
 Interfaces     : Ethernet (192.168.1.100), Wi-Fi (192.168.1.101)
-
-Software Information:
----------------------
-Shell          : /bin/bash
-Editor         : vim
-Go Version     : go1.26.1
-Processes      : 245
-Package Managers: npm (42 packages), pip (89 packages)
-
-User Information:
------------------
-Username       : user
-Name           : Example User
-User ID        : 1000
-Group ID       : 1000
-Home Dir       : /home/user
-Shell          : /bin/bash
-Hostname       : DESKTOP-EXAMPLE
 ```
 
 ## Adding New Features
