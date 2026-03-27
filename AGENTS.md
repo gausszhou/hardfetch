@@ -138,11 +138,9 @@ import (
     "fmt"
     "os"
     "strings"
-
     "github.com/spf13/cobra"
     "golang.org/x/text/cases"
-
-    "fe-cli/internal/cli"
+    "hardfetch/internal/cli"
 )
 ```
 
@@ -211,7 +209,7 @@ hardfetch/
 ### Adding New Features
 1. Create appropriate directory structure under `internal/` or `pkg/`
 2. Write tests for new functionality
-3. Update `cmd/fe-cli/main.go` to integrate new features
+3. Update `cmd/hardfetch/main.go` to integrate new features
 4. Run tests and ensure they pass
 5. Update documentation if needed
 
@@ -251,10 +249,10 @@ go mod tidy
 ### Build Optimization
 ```bash
 # Build with optimizations
-go build -ldflags="-s -w" -o fe-cli cmd/fe-cli/main.go
+go build -ldflags="-s -w" -o hardfetch cmd/hardfetch/main.go
 
 # Strip debug information for smaller binary
-go build -trimpath -o fe-cli cmd/fe-cli/main.go
+go build -trimpath -o hardfetch cmd/hardfetch/main.go
 ```
 
 ### Runtime Performance
@@ -274,18 +272,18 @@ go build -trimpath -o fe-cli cmd/fe-cli/main.go
 ### Debugging
 ```bash
 # Run with debug logging
-DEBUG=1 ./fe-cli
+DEBUG=1 ./hardfetch
 
 # Use delve debugger
-dlv debug cmd/fe-cli/main.go
+dlv debug cmd/hardfetch/main.go
 ```
 
 ### Cross-Compilation
 ```bash
 # Build for multiple platforms
-GOOS=darwin GOARCH=arm64 go build -o fe-cli-darwin-arm64 cmd/fe-cli/main.go
-GOOS=linux GOARCH=amd64 go build -o fe-cli-linux-amd64 cmd/fe-cli/main.go
-GOOS=windows GOARCH=amd64 go build -o fe-cli-windows-amd64.exe cmd/fe-cli/main.go
+GOOS=darwin GOARCH=arm64 go build -o hardfetch-darwin-arm64 cmd/hardfetch/main.go
+GOOS=linux GOARCH=amd64 go build -o hardfetch-linux-amd64 cmd/hardfetch/main.go
+GOOS=windows GOARCH=amd64 go build -o hardfetch-windows-amd64.exe cmd/hardfetch/main.go
 ```
 
 ## Quality Assurance Checklist

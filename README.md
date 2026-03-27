@@ -114,7 +114,7 @@ go test ./...
 go test -cover ./...
 
 # Run specific test
-go test -run TestMainVersion ./cmd/fe-cli
+go test -run TestMainVersion ./cmd/hardfetch
 ```
 
 ### Code Quality

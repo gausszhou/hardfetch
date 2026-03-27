@@ -19,7 +19,7 @@ linters-settings:
   gofmt:
     simplify: true
   goimports:
-    local-prefixes: fe-cli
+    local-prefixes: hardfetch
   revive:
     rules:
       - name: exported
