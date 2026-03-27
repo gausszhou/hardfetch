@@ -17,6 +17,7 @@ var (
 	procGlobalMemoryStatusEx = kernel32.NewProc("GlobalMemoryStatusEx")
 	procGetDiskFreeSpaceExW  = kernel32.NewProc("GetDiskFreeSpaceExW")
 	procGetSystemInfo        = kernel32.NewProc("GetSystemInfo")
+	procGetLogicalDrives     = kernel32.NewProc("GetLogicalDrives")
 	procRegOpenKeyExW        = advapi32.NewProc("RegOpenKeyExW")
 	procRegQueryValueExW     = advapi32.NewProc("RegQueryValueExW")
 	procRegCloseKey          = advapi32.NewProc("RegCloseKey")
@@ -232,11 +233,27 @@ func getCPUFrequencyFallback() string {
 	return "2.0+ GHz"
 }
 
-func getDiskInfo() (*DiskInfo, error) {
-	// Get disk info for C: drive (simplified)
-	var freeBytes, totalBytes, totalFreeBytes uint64
+func getLogicalDrives() []string {
+	var drives []string
 
-	// Use current directory's drive
+	// Get logical drives bitmask
+	ret, _, _ := procGetLogicalDrives.Call()
+	driveMask := uint32(ret)
+
+	// Iterate through drive letters A-Z
+	for i := 0; i < 26; i++ {
+		if driveMask&(1<<uint(i)) != 0 {
+			driveLetter := fmt.Sprintf("%c:", 'A'+i)
+			drives = append(drives, driveLetter)
+		}
+	}
+
+	return drives
+}
+
+func getDiskInfoFallback() ([]*DiskInfo, error) {
+	// Fallback to C: drive only
+	var freeBytes, totalBytes, totalFreeBytes uint64
 	rootPath := "C:\\"
 
 	ret, _, err := procGetDiskFreeSpaceExW.Call(
@@ -250,9 +267,45 @@ func getDiskInfo() (*DiskInfo, error) {
 		return nil, fmt.Errorf("failed to get disk info: %v", err)
 	}
 
-	return &DiskInfo{
+	return []*DiskInfo{{
+		Drive: "C:",
 		Total: totalBytes,
 		Free:  freeBytes,
 		Used:  totalBytes - freeBytes,
-	}, nil
+	}}, nil
+}
+
+func getDiskInfo() ([]*DiskInfo, error) {
+	disks := []*DiskInfo{}
+
+	// Get all logical drives on Windows
+	driveLetters := getLogicalDrives()
+
+	for _, drive := range driveLetters {
+		var freeBytes, totalBytes, totalFreeBytes uint64
+		rootPath := drive + "\\"
+
+		ret, _, _ := procGetDiskFreeSpaceExW.Call(
+			uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(rootPath))),
+			uintptr(unsafe.Pointer(&freeBytes)),
+			uintptr(unsafe.Pointer(&totalBytes)),
+			uintptr(unsafe.Pointer(&totalFreeBytes)),
+		)
+
+		if ret != 0 && totalBytes > 0 {
+			disks = append(disks, &DiskInfo{
+				Drive: drive,
+				Total: totalBytes,
+				Free:  freeBytes,
+				Used:  totalBytes - freeBytes,
+			})
+		}
+	}
+
+	if len(disks) == 0 {
+		// Fallback to C: drive only
+		return getDiskInfoFallback()
+	}
+
+	return disks, nil
 }

@@ -377,12 +377,11 @@ func displayMemoryInfo(noColors bool) {
 
 func displayDiskInfo(noColors bool) {
 	hwInfo, err := hardware.GetHardwareInfo()
-	if err != nil || hwInfo.Disk == nil {
+	if err != nil || hwInfo.Disks == nil || len(hwInfo.Disks) == 0 {
 		fmt.Printf("Error getting disk info: %v\n", err)
 		return
 	}
 
-	disk := hwInfo.Disk
 	fmt.Println("Disk Information:")
 	fmt.Println("-----------------")
 
@@ -391,18 +390,38 @@ func displayDiskInfo(noColors bool) {
 		color = display.GetColorCode("magenta")
 	}
 
-	data := map[string]string{
-		"Total": disk.FormatTotal(),
-		"Used":  disk.FormatUsed(),
-		"Free":  disk.FormatFree(),
-	}
-
-	for label, value := range data {
-		if noColors {
-			fmt.Printf("%-15s: %s\n", label, value)
-		} else {
-			fmt.Println(display.FormatInfoWithColor(label, value, color))
+	for _, disk := range hwInfo.Disks {
+		// Show drive letter/name
+		driveLabel := "Drive"
+		if disk.Drive != "" {
+			driveLabel = fmt.Sprintf("Drive %s", disk.Drive)
 		}
+
+		// Display drive label
+		if noColors {
+			fmt.Printf("%s:\n", driveLabel)
+		} else {
+			fmt.Printf("%s%s%s:\n", color, driveLabel, "\033[0m")
+		}
+
+		// Display disk info with indentation in consistent order
+		fields := []struct {
+			label string
+			value string
+		}{
+			{"Total", disk.FormatTotal()},
+			{"Used", disk.FormatUsed()},
+			{"Free", disk.FormatFree()},
+		}
+
+		for _, field := range fields {
+			if noColors {
+				fmt.Printf("  %-15s: %s\n", field.label, field.value)
+			} else {
+				fmt.Printf("  %s%-15s%s: %s\n", color, field.label, "\033[0m", field.value)
+			}
+		}
+
+		fmt.Println()
 	}
-	fmt.Println()
 }

@@ -29,12 +29,13 @@ func getMemoryInfo() (*MemoryInfo, error) {
 	}, nil
 }
 
-func getDiskInfo() (*DiskInfo, error) {
+func getDiskInfo() ([]*DiskInfo, error) {
 	// Generic implementation that returns placeholder data
 	// In a real implementation, you would use system-specific calls
-	return &DiskInfo{
+	return []*DiskInfo{{
+		Drive: "/",
 		Total: 256 * 1024 * 1024 * 1024, // 256 GB
 		Used:  128 * 1024 * 1024 * 1024, // 128 GB
 		Free:  128 * 1024 * 1024 * 1024, // 128 GB
-	}, nil
+	}}, nil
 }

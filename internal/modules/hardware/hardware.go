@@ -23,6 +23,7 @@ type MemoryInfo struct {
 
 // DiskInfo represents disk information
 type DiskInfo struct {
+	Drive string // Drive letter or mount point (e.g., "C:", "/")
 	Total uint64
 	Used  uint64
 	Free  uint64
@@ -32,7 +33,7 @@ type DiskInfo struct {
 type HardwareInfo struct {
 	CPU    *CPUInfo
 	Memory *MemoryInfo
-	Disk   *DiskInfo
+	Disks  []*DiskInfo
 }
 
 // GetHardwareInfo collects hardware information
@@ -50,8 +51,8 @@ func GetHardwareInfo() (*HardwareInfo, error) {
 	}
 
 	// Get disk info
-	if diskInfo, err := getDiskInfo(); err == nil {
-		info.Disk = diskInfo
+	if disks, err := getDiskInfo(); err == nil {
+		info.Disks = disks
 	}
 
 	return info, nil
