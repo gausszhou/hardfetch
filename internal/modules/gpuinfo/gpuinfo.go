@@ -64,6 +64,8 @@ func getGPUInfoWindows() ([]*Info, error) {
 	}
 
 	nvidiaFreq, nvidiaVRAM := getNvidiaSMI()
+	amdFreq, amdVRAM := getROCmSMI()
+	intelFreq, intelVRAM := getIntelGPUTop()
 
 	result := make([]*Info, 0, len(gpus))
 	for i, g := range gpus {
@@ -72,16 +74,37 @@ func getGPUInfoWindows() ([]*Info, error) {
 		freq := ""
 		gpuType := "Integrated"
 
-		if strings.Contains(strings.ToLower(g.Name), "nvidia") || strings.Contains(strings.ToLower(g.Name), "amd") || strings.Contains(strings.ToLower(g.Name), "radeon") {
+		lowerName := strings.ToLower(g.Name)
+		isNvidia := strings.Contains(lowerName, "nvidia") || strings.Contains(lowerName, "geforce")
+		isAMD := strings.Contains(lowerName, "amd") || strings.Contains(lowerName, "radeon") || strings.Contains(lowerName, "intel") || strings.Contains(lowerName, "xe")
+		isDiscrete := isNvidia || isAMD
+
+		if isDiscrete {
 			gpuType = "Discrete"
 		}
 
-		if i < len(nvidiaFreq) {
-			freq = nvidiaFreq[i]
-		}
-		if i < len(nvidiaVRAM) && nvidiaVRAM[i] != "" {
-			vramStr = nvidiaVRAM[i]
-			vram = uint64(float64(vram) * 1024 * 1024)
+		if isNvidia {
+			if i < len(nvidiaFreq) {
+				freq = nvidiaFreq[i]
+			}
+			if i < len(nvidiaVRAM) && nvidiaVRAM[i] != "" {
+				vramStr = nvidiaVRAM[i]
+				vram = uint64(float64(vram) * 1024 * 1024)
+			}
+		} else if isAMD {
+			if i < len(amdFreq) {
+				freq = amdFreq[i]
+			}
+			if i < len(amdVRAM) && amdVRAM[i] != "" {
+				vramStr = amdVRAM[i]
+			}
+		} else {
+			if i < len(intelFreq) {
+				freq = intelFreq[i]
+			}
+			if i < len(intelVRAM) && intelVRAM[i] != "" {
+				vramStr = intelVRAM[i]
+			}
 		}
 
 		info := &Info{
@@ -118,6 +141,65 @@ func getNvidiaSMI() ([]string, []string) {
 			}
 			if mem, err := strconv.ParseFloat(memMiB, 64); err == nil {
 				vrams = append(vrams, fmt.Sprintf("%.2f GiB", mem/1024))
+			}
+		}
+	}
+	return freqs, vrams
+}
+
+func getROCmSMI() ([]string, []string) {
+	cmd := exec.Command("rocm-smi", "--query-gpu=name,clocks.max.memory,memory.totalUsed --csv")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, nil
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) < 2 {
+		return nil, nil
+	}
+
+	freqs := make([]string, 0, len(lines)-1)
+	vrams := make([]string, 0, len(lines)-1)
+	for i := 1; i < len(lines); i++ {
+		parts := strings.Split(lines[i], ",")
+		if len(parts) >= 3 {
+			freqMHz := strings.TrimSpace(strings.Replace(parts[1], " MHz", "", 1))
+			memMiB := strings.TrimSpace(strings.Replace(parts[2], " MiB", "", 1))
+			if freq, err := strconv.ParseFloat(freqMHz, 64); err == nil {
+				freqs = append(freqs, fmt.Sprintf("%.2f GHz", freq/1000))
+			}
+			if mem, err := strconv.ParseFloat(memMiB, 64); err == nil {
+				vrams = append(vrams, fmt.Sprintf("%.2f GiB", mem/1024))
+			}
+		}
+	}
+	return freqs, vrams
+}
+
+func getIntelGPUTop() ([]string, []string) {
+	cmd := exec.Command("powershell", "-NoProfile", "-Command",
+		`$ErrorActionPreference='SilentlyContinue';$gpu = Get-CimInstance Win32_VideoController | Where-Object { $_.Name -like '*Intel*' }; if($gpu) { Write-Output "$($gpu.Name),$($gpu.AdapterRAM)" }`)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, nil
+	}
+
+	outputStr := strings.TrimSpace(string(output))
+	if outputStr == "" {
+		return nil, nil
+	}
+
+	lines := strings.Split(outputStr, "\n")
+	freqs := make([]string, 0, len(lines))
+	vrams := make([]string, 0, len(lines))
+	for _, line := range lines {
+		parts := strings.Split(line, ",")
+		if len(parts) >= 2 {
+			memBytes := strings.TrimSpace(parts[1])
+			if mem, err := strconv.ParseFloat(memBytes, 64); err == nil {
+				vrams = append(vrams, fmt.Sprintf("%.2f GiB", mem/(1024*1024*1024)))
+				freqs = append(freqs, "")
 			}
 		}
 	}
