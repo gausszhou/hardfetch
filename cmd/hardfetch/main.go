@@ -22,13 +22,11 @@ func main() {
 		}
 	}
 
-	modulesFlag := flag.String("modules", "", "Comma-separated list of modules to show")
-	allFlag := flag.Bool("all", true, "Show all available modules")
 	noColorsFlag := flag.Bool("no-colors", false, "Disable colors")
 	flag.Parse()
 
 	result := detect.Detect(detect.GetCoreDetectors()...)
-	display.PrintResult(result, *modulesFlag, *allFlag, *noColorsFlag)
+	display.PrintResult(result, "", true, *noColorsFlag)
 }
 
 func printVersion() {
