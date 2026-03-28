@@ -64,7 +64,7 @@ func TestMainVersion(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 
-	expected := "hardfetch version 0.1.0\nAuthor: Hardfetch Team\nWebsite: https://github.com/yourusername/hardfetch\n"
+	expected := "hardfetch version 0.1.0\nAuthor: Hardfetch Team\nRepo: https://github.com/gausszhou/hardfetch\n"
 	if output != expected {
 		t.Errorf("Version output doesn't match expected:\nGot: %q\nWant: %q", output, expected)
 	}
@@ -91,7 +91,7 @@ func TestMainDefault(t *testing.T) {
 
 	// Default output now shows system info, not just version
 	// So we need to update the test
-	if !strings.Contains(output, "Hostname") && !strings.Contains(output, "hardfetch version") {
+	if !strings.Contains(output, "CPU") && !strings.Contains(output, "Memory") && !strings.Contains(output, "hardfetch version") {
 		t.Errorf("Default output doesn't contain expected content: %s", output)
 	}
 }
