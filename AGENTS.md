@@ -191,10 +191,13 @@ hardfetch/
 ├── cmd/hardfetch/          # 主应用程序入口
 ├── internal/
 │   ├── cli/                # CLI 特定逻辑
-│   ├── modules/            # 信息采集模块
-│   │   ├── system/         # 系统信息
-│   │   ├── hardware/       # 硬件信息 (CPU, GPU, 内存, 磁盘)
-│   │   └── network/        # 网络信息
+│   ├── detect/             # 信息采集模块（核心模块）
+│   │   ├── detector.go     # 采集器接口和实现
+│   │   ├── system.go       # 系统信息结构体
+│   │   ├── hardware.go     # 硬件信息结构体
+│   │   ├── network.go      # 网络信息结构体
+│   │   └── collector/      # 平台特定采集实现
+│   │       └── windows_collector.go  # Windows 采集实现
 │   ├── display/            # 显示格式化
 │   └── utils/              # 工具函数
 ├── configs/                # 配置文件
