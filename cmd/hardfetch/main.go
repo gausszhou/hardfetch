@@ -10,50 +10,30 @@ import (
 	"strings"
 
 	"github.com/gausszhou/hardfetch/internal/cli"
+	"github.com/gausszhou/hardfetch/internal/detect"
 	"github.com/gausszhou/hardfetch/internal/display"
-	"github.com/gausszhou/hardfetch/internal/modules/collector"
 	"github.com/gausszhou/hardfetch/internal/modules/hardware"
 	"github.com/gausszhou/hardfetch/internal/modules/network"
 	"github.com/gausszhou/hardfetch/internal/modules/system"
 )
 
 func main() {
-	// Define flags
-	versionFlag := flag.Bool("version", false, "Print version information")
-	helpFlag := flag.Bool("help", false, "Print help information")
-	modulesFlag := flag.String("modules", "", "Comma-separated list of modules to show (system,cpu,memory,disk)")
-	allFlag := flag.Bool("all", true, "Show all available modules")
-	noColorsFlag := flag.Bool("no-colors", false, "Don't use colors")
-	genConfigFlag := flag.Bool("gen-config", false, "Generate default configuration file")
-	listModulesFlag := flag.Bool("list-modules", false, "List all available modules")
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--version", "-v":
+			printVersion()
+			return
+		case "--help", "-h":
+			printHelp()
+			return
+		}
+	}
 
+	modulesFlag := flag.String("modules", "", "Comma-separated list of modules to show")
+	allFlag := flag.Bool("all", true, "Show all available modules")
+	noColorsFlag := flag.Bool("no-colors", false, "Disable colors")
 	flag.Parse()
 
-	// Handle version flag
-	if *versionFlag {
-		printVersion()
-		return
-	}
-
-	// Handle help flag
-	if *helpFlag {
-		printHelp()
-		return
-	}
-
-	// Handle list modules flag
-	if *listModulesFlag {
-		printAvailableModules()
-		return
-	}
-
-	// Handle generate config flag
-	if *genConfigFlag {
-		generateConfig()
-		return
-	}
-
-	// Main execution
 	runHardfetch(*modulesFlag, *allFlag, *noColorsFlag)
 }
 
@@ -76,67 +56,33 @@ func printHelp() {
 	fmt.Println("  hardfetch --gen-config       # Generate default configuration file")
 }
 
-func printAvailableModules() {
-	fmt.Println("Available modules:")
-	fmt.Println("  system    - System information (OS, kernel, hostname, uptime)")
-	fmt.Println("  cpu       - CPU information (model, cores, frequency)")
-	fmt.Println("  gpu       - GPU information (name, vendor, VRAM, driver)")
-	fmt.Println("  memory    - Memory information (total, used, available)")
-	fmt.Println("  disk      - Disk information (total, used, free)")
-	fmt.Println("  network   - Network information (IP addresses, interfaces)")
-}
-
-func generateConfig() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Printf("Error getting home directory: %v\n", err)
-		os.Exit(1)
-	}
-
-	configPath := fmt.Sprintf("%s/.config/hardfetch/config.json", home)
-	if err := cli.GenerateDefaultConfig(configPath); err != nil {
-		fmt.Printf("Error generating config: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Default configuration generated at: %s\n", configPath)
-	fmt.Println("You can edit this file to customize hardfetch behavior.")
-}
-
-type collectedInfo struct {
-	systemInfo   *system.SystemInfo
-	networkInfo  *network.NetworkInfo
-	hardwareInfo *hardware.HardwareInfo
-	systemErr    error
-	networkErr   error
-	hardwareErr  error
-}
-
 func runHardfetch(modulesStr string, showAll, noColors bool) {
 	modules := getModulesToDisplay(modulesStr, showAll)
 
 	var logoLines []string
+	var logoWidth int
 	if runtime.GOOS == "windows" {
 		logoLines = loadLogo("windows")
+		logoWidth = getLogoMaxWidth(logoLines)
 	}
 
-	c := collector.GetCollector()
-
-	sysInfo := convertToSystemInfo(c.SystemInfo)
-	hwInfo := convertToHardwareInfo(c.Hardware, c.Battery)
-	netInfo := convertToNetworkInfo(c.Network)
+	result := detect.Detect(detect.GetCoreDetectors()...)
 
 	var buffer bytes.Buffer
 
 	if len(logoLines) > 0 {
 		maxLogoHeight := len(logoLines)
-		infoLines := getInfoLines(modules, sysInfo, hwInfo, netInfo, noColors)
+		infoLines := getInfoLines(modules, result.System, result.Hardware, result.Network, noColors)
 
 		for i := 0; i < maxLogoHeight || i < len(infoLines); i++ {
 			if i < len(logoLines) {
+				lineLen := len(logoLines[i])
 				buffer.WriteString(logoLines[i])
+				if lineLen < logoWidth {
+					buffer.WriteString(strings.Repeat(" ", logoWidth-lineLen))
+				}
 			} else {
-				buffer.WriteString(strings.Repeat(" ", 22))
+				buffer.WriteString(strings.Repeat(" ", logoWidth))
 			}
 
 			if i < len(infoLines) {
@@ -146,13 +92,23 @@ func runHardfetch(modulesStr string, showAll, noColors bool) {
 			buffer.WriteString("\n")
 		}
 	} else {
-		for _, line := range getInfoLines(modules, sysInfo, hwInfo, netInfo, noColors) {
+		for _, line := range getInfoLines(modules, result.System, result.Hardware, result.Network, noColors) {
 			buffer.WriteString(line)
 			buffer.WriteString("\n")
 		}
 	}
 
 	fmt.Print(buffer.String())
+}
+
+func getLogoMaxWidth(lines []string) int {
+	maxWidth := 0
+	for _, line := range lines {
+		if len(line) > maxWidth {
+			maxWidth = len(line)
+		}
+	}
+	return maxWidth
 }
 
 func loadLogo(name string) []string {
@@ -202,101 +158,16 @@ func getInfoLines(modules []string, sysInfo *system.SystemInfo, hwInfo *hardware
 	return result
 }
 
-func convertToSystemInfo(ci *collector.SystemInfoResult) *system.SystemInfo {
-	if ci == nil {
-		return &system.SystemInfo{}
-	}
-	return &system.SystemInfo{
-		Hostname: ci.Hostname,
-		OS:       ci.OSVersion,
-		Host:     ci.Model,
-		Kernel:   ci.Kernel,
-		Shell:    ci.Shell,
-		Display:  ci.Display,
-		WM:       ci.WM,
-		WMTheme:  ci.WMTheme,
-		Theme:    ci.Theme,
-		Font:     ci.Font,
-		Cursor:   ci.Cursor,
-		Terminal: ci.Terminal,
-		Locale:   ci.Locale,
-	}
-}
-
-func convertToHardwareInfo(hw *collector.HardwareResult, bat *collector.BatteryResult) *hardware.HardwareInfo {
-	if hw == nil {
-		return &hardware.HardwareInfo{}
-	}
-	info := &hardware.HardwareInfo{
-		Memory: &hardware.MemoryInfo{
-			Total: hw.Memory,
-			Used:  hw.MemoryUsed,
-		},
-		Swap: &hardware.SwapInfo{
-			Total: hw.SwapTotal,
-			Used:  hw.SwapUsed,
-		},
-		Disks: make([]*hardware.DiskInfo, 0),
-		GPUs:  make([]*hardware.GPUInfo, 0),
-	}
-
-	for _, d := range hw.Disks {
-		info.Disks = append(info.Disks, &hardware.DiskInfo{
-			Drive:      d.Drive,
-			Total:      d.Total,
-			Used:       d.Used,
-			Free:       d.Free,
-			FileSystem: d.FileSystem,
-		})
-	}
-
-	for _, g := range hw.GPUs {
-		info.GPUs = append(info.GPUs, &hardware.GPUInfo{
-			Name:          g.Name,
-			Vendor:        g.Vendor,
-			VRAM:          g.VRAM,
-			DriverVersion: g.DriverVersion,
-		})
-	}
-
-	if bat != nil {
-		info.Battery = &hardware.BatteryInfo{
-			Percentage: bat.Percentage,
-			Status:     bat.Status,
-		}
-	}
-
-	return info
-}
-
-func convertToNetworkInfo(ni *collector.NetworkResult) *network.NetworkInfo {
-	if ni == nil {
-		return &network.NetworkInfo{}
-	}
-	info := &network.NetworkInfo{
-		LocalIP: ni.LocalIP,
-	}
-	for _, iface := range ni.Interfaces {
-		info.Interfaces = append(info.Interfaces, network.NetworkInterface{
-			Name:      iface.Name,
-			IPAddress: iface.IP,
-		})
-	}
-	return info
-}
-
 func getModulesToDisplay(modulesStr string, showAll bool) []string {
 	if showAll {
 		return []string{"system", "cpu", "gpu", "memory", "disk", "network", "battery"}
 	}
 
 	if modulesStr == "" {
-		// Default modules
 		return []string{"system", "cpu", "gpu", "memory", "disk", "network", "battery"}
 	}
 
 	modules := strings.Split(modulesStr, ",")
-	// Remove empty strings and duplicates
 	uniqueModules := make(map[string]bool)
 	result := []string{}
 
