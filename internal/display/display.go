@@ -74,10 +74,8 @@ func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *detect.SystemInfo, er
 	}{
 		{"Hostname", info.Hostname},
 		{"OS", info.OS},
-		{"Host", info.Host},
 		{"Kernel", info.Kernel},
 		{"Uptime", info.FormatUptime()},
-		{"Shell", info.Shell},
 		{"WM", info.WM},
 		{"WM Theme", info.WMTheme},
 		{"Theme", info.Theme},
@@ -152,20 +150,6 @@ func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, e
 			value string
 		}{
 			{"GPU", gpu.Name},
-		}
-
-		if gpu.VRAM > 0 {
-			fields = append(fields, struct {
-				label string
-				value string
-			}{"VRAM", gpu.FormatVRAM()})
-		}
-
-		if gpu.DriverVersion != "" {
-			fields = append(fields, struct {
-				label string
-				value string
-			}{"Driver", gpu.DriverVersion})
 		}
 
 		for _, field := range fields {
