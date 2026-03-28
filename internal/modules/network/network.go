@@ -38,18 +38,7 @@ func getNetworkInfoWindows() (*Info, error) {
 	output, _ := cmd.Output()
 	hostname := strings.TrimSpace(string(output))
 
-	cmd = exec.Command("powershell", "-NoProfile", "-Command", `
-		$ErrorActionPreference = 'SilentlyContinue'
-		$adapters = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | ForEach-Object {
-			@{
-				Name = $_.InterfaceAlias
-				IP = $_.IPAddress
-			}
-		}
-		@{
-			Interfaces = $adapters
-		} | ConvertTo-Json -Compress -Depth 2
-	`)
+	cmd = exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-NetIPAddress -AddressFamily IPv4|Where-Object{$_.IPAddress -notlike'127.*' -and $_.IPAddress -notlike'169.254.*'}|Select-Object InterfaceAlias,IPAddress|ConvertTo-Json -Compress`)
 	output, err := cmd.Output()
 	if err != nil {
 		return &Info{Hostname: hostname, LocalIP: "", Interfaces: []Interface{}}, nil
@@ -61,22 +50,26 @@ func getNetworkInfoWindows() (*Info, error) {
 	}
 
 	type adapterData struct {
-		Name string `json:"Name"`
-		IP   string `json:"IP"`
+		Name string `json:"InterfaceAlias"`
+		IP   string `json:"IPAddress"`
 	}
 
-	type netData struct {
-		Interfaces []adapterData `json:"Interfaces"`
+	var adapters []adapterData
+	if strings.HasPrefix(outputStr, "[") {
+		if err := json.Unmarshal([]byte(outputStr), &adapters); err != nil {
+			return &Info{Hostname: hostname, LocalIP: "", Interfaces: []Interface{}}, nil
+		}
+	} else {
+		var adapter adapterData
+		if err := json.Unmarshal([]byte(outputStr), &adapter); err != nil {
+			return &Info{Hostname: hostname, LocalIP: "", Interfaces: []Interface{}}, nil
+		}
+		adapters = []adapterData{adapter}
 	}
 
-	var net netData
-	if err := json.Unmarshal([]byte(outputStr), &net); err != nil {
-		return &Info{Hostname: hostname, LocalIP: "", Interfaces: []Interface{}}, nil
-	}
-
-	interfaces := make([]Interface, 0, len(net.Interfaces))
+	interfaces := make([]Interface, 0, len(adapters))
 	var localIP string
-	for _, iface := range net.Interfaces {
+	for _, iface := range adapters {
 		interfaces = append(interfaces, Interface{
 			Name:      iface.Name,
 			IPAddress: iface.IP,

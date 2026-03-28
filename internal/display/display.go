@@ -10,7 +10,7 @@ import (
 
 const defaultModules = "system,cpu,gpu,memory,disk,network,battery"
 
-var moduleList = []string{"system", "cpu", "memory", "disk", "network", "battery"}
+var moduleList = []string{"system", "cpu", "gpu", "memory", "disk", "network", "battery"}
 
 func PrintResult(result *detect.Result) {
 	modules := moduleList
@@ -59,6 +59,8 @@ func getInfoLines(modules []string, sysInfo *detect.SystemInfo, hwInfo *detect.H
 			displaySystemInfoToBuffer(&buf, sysInfo, nil)
 		case "cpu":
 			displayCPUInfoToBuffer(&buf, hwInfo, nil)
+		case "gpu":
+			displayGPUInfoToBuffer(&buf, hwInfo, nil)
 		case "memory":
 			displayMemoryInfoToBuffer(&buf, hwInfo, nil)
 		case "disk":
@@ -160,6 +162,48 @@ func displayCPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, e
 
 	for _, field := range fields {
 		fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
+	}
+}
+
+func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, err error) {
+	if err != nil || hwInfo.GPUs == nil || len(hwInfo.GPUs) == 0 {
+		return
+	}
+
+	color := GetColorCode("red")
+
+	for _, gpu := range hwInfo.GPUs {
+		fields := []struct {
+			label string
+			value string
+		}{
+			{"GPU", gpu.Name},
+		}
+
+		if gpu.Vendor != "" {
+			fields = append(fields, struct {
+				label string
+				value string
+			}{"Vendor", gpu.Vendor})
+		}
+
+		if gpu.VRAM > 0 {
+			fields = append(fields, struct {
+				label string
+				value string
+			}{"VRAM", gpu.FormatVRAM()})
+		}
+
+		if gpu.DriverVersion != "" {
+			fields = append(fields, struct {
+				label string
+				value string
+			}{"Driver", gpu.DriverVersion})
+		}
+
+		for _, field := range fields {
+			fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
+		}
 	}
 }
 

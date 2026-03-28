@@ -1,6 +1,7 @@
 package cpuinfo
 
 import (
+	"fmt"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -69,7 +70,29 @@ func getCPUInfoWindows() (*Info, error) {
 
 	info.Architecture = getArchitectureWindows(kernel32)
 
+	info.Frequency = getCPUFrequencyWindows()
+
 	return info, nil
+}
+
+func getCPUFrequencyWindows() string {
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';(Get-CimInstance Win32_Processor|Measure-Object -Property MaxClockSpeed -Maximum).Maximum`)
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	outputStr := strings.TrimSpace(string(output))
+	if outputStr == "" {
+		return ""
+	}
+	freq, err := strconv.ParseFloat(outputStr, 64)
+	if err != nil {
+		return ""
+	}
+	if freq > 0 {
+		return fmt.Sprintf("%.2f GHz", freq/1000)
+	}
+	return ""
 }
 
 func getProcessorNameWindows(kernel32 *windows.DLL) string {

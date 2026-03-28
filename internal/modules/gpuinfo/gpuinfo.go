@@ -29,18 +29,7 @@ func Get() ([]*Info, error) {
 }
 
 func getGPUInfoWindows() ([]*Info, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", `
-		$ErrorActionPreference = 'SilentlyContinue'
-		$gpus = Get-CimInstance Win32_VideoController | ForEach-Object {
-			@{
-				Name = $_.Name
-				Vendor = $_.AdapterCompatibility
-				VRAM = [int64]$_.AdapterRAM
-				DriverVersion = $_.DriverVersion
-			}
-		}
-		$gpus | ConvertTo-Json -Compress -Depth 2
-	`)
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_VideoController|Select-Object Name,AdapterCompatibility,AdapterRAM,DriverVersion|ConvertTo-Json -Compress -Depth 2`)
 	output, err := cmd.Output()
 	if err != nil {
 		return []*Info{{Name: "Unknown", Vendor: "Unknown"}}, nil
@@ -52,10 +41,10 @@ func getGPUInfoWindows() ([]*Info, error) {
 	}
 
 	type gpuData struct {
-		Name          string  `json:"Name"`
-		Vendor        string  `json:"Vendor"`
-		VRAM          float64 `json:"VRAM"`
-		DriverVersion string  `json:"DriverVersion"`
+		Name                 string  `json:"Name"`
+		AdapterCompatibility string  `json:"AdapterCompatibility"`
+		AdapterRAM           float64 `json:"AdapterRAM"`
+		DriverVersion        string  `json:"DriverVersion"`
 	}
 
 	var gpus []gpuData
@@ -75,8 +64,8 @@ func getGPUInfoWindows() ([]*Info, error) {
 	for _, g := range gpus {
 		info := &Info{
 			Name:          g.Name,
-			Vendor:        g.Vendor,
-			VRAM:          uint64(g.VRAM),
+			Vendor:        g.AdapterCompatibility,
+			VRAM:          uint64(g.AdapterRAM),
 			DriverVersion: g.DriverVersion,
 		}
 		if info.Vendor == "" {
