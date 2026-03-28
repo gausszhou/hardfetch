@@ -11,11 +11,6 @@ import (
 )
 
 func detectSystem() (any, error) {
-	cpu, err := cpuinfo.Get()
-	if err != nil {
-		cpu = &cpuinfo.Info{}
-	}
-
 	sysInfo, err := sys.Get()
 	if err != nil {
 		sysInfo = &sys.Info{}
@@ -27,7 +22,7 @@ func detectSystem() (any, error) {
 		Kernel:   sysInfo.Kernel,
 		Hostname: sysInfo.Hostname,
 		Host:     sysInfo.Host,
-		Uptime:   cpu.Uptime,
+		Uptime:   sysInfo.Uptime,
 	}, nil
 }
 

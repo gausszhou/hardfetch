@@ -3,6 +3,7 @@ package sys
 import (
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/shirou/gopsutil/v4/host"
 )
@@ -13,6 +14,7 @@ type Info struct {
 	Kernel   string
 	Hostname string
 	Host     string
+	Uptime   time.Duration
 }
 
 func Get() (*Info, error) {
@@ -33,9 +35,15 @@ func Get() (*Info, error) {
 		}
 	}
 
-	if info.OS == "windows" {
+	uptime, err := host.BootTime()
+	if err == nil {
+		info.Uptime = time.Duration(time.Now().Unix()-int64(uptime)) * time.Second
+	}
+
+	switch info.OS {
+	case "windows":
 		info.OS = "Windows"
-	} else if info.OS == "darwin" {
+	case "darwin":
 		info.OS = "macOS"
 	}
 
