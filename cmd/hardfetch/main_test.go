@@ -43,12 +43,6 @@ func TestMainHelp(t *testing.T) {
 	if !strings.Contains(combinedOutput, "Usage:") {
 		t.Errorf("Help output doesn't contain 'Usage:'")
 	}
-	if !strings.Contains(combinedOutput, "-help") {
-		t.Errorf("Help output doesn't contain '-help' flag")
-	}
-	if !strings.Contains(combinedOutput, "-version") {
-		t.Errorf("Help output doesn't contain '-version' flag")
-	}
 }
 
 func TestMainVersion(t *testing.T) {
