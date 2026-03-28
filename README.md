@@ -1,282 +1,230 @@
 # hardfetch
 
-A fastfetch/neofetch-like system information tool written in Go.
+一个使用 Go 编写的类似 fastfetch/neofetch 的系统信息工具。
 
-## Features
+## 特性
 
-- **System Information**: OS, kernel, hostname, uptime
-- **Hardware Information**: 
-  - CPU: model, cores, threads, frequency, architecture
-  - GPU: name, vendor, VRAM, driver version (Windows WMI support)
-  - Memory: total, used, available, free
-  - Disk: multi-disk support with drive letters (Windows) or mount points
-- **Network Information**: hostname, local IP, public IP, network interfaces
-- **Customizable Display**: ASCII logos, color themes, output formatting
-- **Cross-platform**: Support Windows, Linux, macOS
-- **High Performance**: Concurrent information collection
-- **Configurable**: JSON/YAML config files, command-line options
-- **Modular Design**: Select specific modules to display
+- **系统信息**: 操作系统、内核、主机名、运行时间、Shell
+- **桌面环境**: 窗口管理器、主题、字体、终端、区域设置
+- **硬件信息**:
+  - CPU: 型号、核心数、线程数、频率、架构
+  - GPU: 名称、供应商、显存、驱动版本（Windows WMI 支持）
+  - 内存: 总量、已用、可用、使用率
+  - 交换空间: 总量、已用、使用率
+  - 磁盘: 多磁盘支持，Windows 下显示盘符，Linux/macOS 下显示挂载点
+  - 电池: 电量、充电状态
+- **网络信息**: 本地IP、公网IP、网络接口
+- **可定制显示**: ASCII 徽标、颜色主题、输出格式
+- **跨平台**: 支持 Windows、Linux、macOS
+- **高性能**: 并发信息采集
+- **可配置**: JSON/YAML 配置文件、命令行选项
+- **模块化设计**: 选择要显示的特定模块
 
-## Installation
+## 安装
 
-### From Source
+### 从源码安装
 
 ```bash
-# Clone the repository
+# 克隆仓库
 git clone <repository-url>
 cd hardfetch
 
-# Build and install
+# 构建并安装
 make install
-# or
+# 或
 go install ./cmd/hardfetch
 ```
 
-### Using go install
+### 使用 go install
 
 ```bash
 go install hardfetch/cmd/hardfetch@latest
 ```
 
-## Usage
+## 使用方法
 
 ```bash
-# Show system information with default settings
+# 使用默认设置显示系统信息
 hardfetch
 
-# Show specific modules
+# 显示特定模块
 hardfetch --modules system,cpu,memory
 
-# Show all available modules
+# 显示所有可用模块
 hardfetch --all
 
-# Show without ASCII logo
+# 不显示 ASCII 徽标
 hardfetch --no-logo
 
-# Show without colors
+# 不显示颜色
 hardfetch --no-colors
 
-# Show version
+# 显示版本
 hardfetch --version
 
-# Show help
+# 显示帮助
 hardfetch --help
 
-# Generate config file
+# 生成配置文件
 hardfetch --gen-config
 
-# List all available modules
+# 列出所有可用模块
 hardfetch --list-modules
 ```
 
-## Available Modules
+## 可用模块
 
-- **system**: Operating system, kernel, hostname, uptime
-- **cpu**: CPU model, architecture, cores, threads, frequency
-- **gpu**: GPU name, vendor, VRAM, driver version
-- **memory**: Total, used, available, and free memory
-- **disk**: Multi-disk information with drive letters/mount points
-- **network**: Hostname, local IP, public IP, network interfaces
+- **os**: 操作系统、版本、内核
+- **host**: 主机名、主机型号
+- **kernel**: 内核版本
+- **uptime**: 系统运行时间
+- **shell**: 默认 Shell
+- **wm**: 窗口管理器
+- **theme**: 桌面主题
+- **font**: 系统字体
+- **terminal**: 终端模拟器
+- **locale**: 系统区域设置
+- **cpu**: CPU 型号、架构、核心数、线程数、频率
+- **gpu**: GPU 名称、供应商、显存、驱动版本
+- **memory**: 总量、已用、可用、剩余内存
+- **swap**: 交换空间使用情况
+- **disk**: 多磁盘信息，支持盘符/挂载点
+- **network**: 本地IP、公网IP、网络接口
+- **battery**: 电池状态
 
-## Development
+## 开发
 
-### Build Commands
+### 构建命令
 
 ```bash
-# Build binary to dist/ directory
+# 构建二进制文件到 dist/ 目录
 make build
 
-# Run tests
+# 运行测试
 make test
 
-# Clean build artifacts (removes dist/ directory)
+# 清理构建产物（删除 dist/ 目录）
 make clean
 
-# Install globally
+# 全局安装
 make install
 
-# Build for multiple platforms (Linux, macOS, Windows)
+# 为多个平台构建（Linux、macOS、Windows）
 make build-all
 
-# Build for specific platform
-make build-linux    # Build Linux binaries
-make build-darwin   # Build macOS binaries  
-make build-windows  # Build Windows binaries
+# 为特定平台构建
+make build-linux    # 构建 Linux 二进制文件
+make build-darwin   # 构建 macOS 二进制文件
+make build-windows  # 构建 Windows 二进制文件
 ```
 
-### Testing
+### 测试
 
 ```bash
-# Run all tests
+# 运行所有测试
 go test ./...
 
-# Run tests with coverage
+# 运行带覆盖率的测试
 go test -cover ./...
 
-# Run specific test
+# 运行特定测试
 go test -run TestMainVersion ./cmd/hardfetch
 ```
 
-### Code Quality
+### 代码质量
 
 ```bash
-# Format code
+# 格式化代码
 go fmt ./...
 
-# Vet code
+# 检查代码
 go vet ./...
 
-# Run linter (requires golangci-lint)
+# 运行代码检查器（需要 golangci-lint）
 golangci-lint run ./...
 ```
 
-## Project Structure
+## 项目结构
 
 ```
 hardfetch/
-├── cmd/hardfetch/          # Main application entry point
-│   ├── main.go             # CLI entry point
-│   └── main_test.go        # CLI tests
+├── cmd/hardfetch/          # 主应用程序入口
+│   ├── main.go             # CLI 入口点
+│   └── main_test.go        # CLI 测试
 ├── internal/
-│   ├── cli/                # CLI-specific logic
-│   │   ├── version.go      # Version constant
-│   │   ├── config.go       # Configuration management
+│   ├── cli/                # CLI 特定逻辑
+│   │   ├── version.go      # 版本常量
+│   │   ├── config.go       # 配置管理
 │   │   └── ...
-│   ├── modules/            # Information collection modules
-│   │   ├── system/         # System information
-│   │   ├── hardware/       # Hardware information (CPU, GPU, memory, disk)
-│   │   │   ├── hardware.go          # Common hardware interface
-│   │   │   ├── hardware_windows.go  # Windows-specific implementations
-│   │   │   └── hardware_other.go    # Non-Windows implementations
-│   │   └── network/        # Network information
-│   ├── display/            # Display formatting
-│   │   ├── ascii.go        # ASCII art rendering
-│   │   ├── colors.go       # Color support
-│   │   └── formatter.go    # Output formatting
-│   └── utils/              # Utility functions
-├── dist/                   # Build outputs (generated, gitignored)
-├── configs/                # Configuration files
-│   └── default.json        # Default configuration
-├── logos/                  # ASCII logo files
-├── go.mod                  # Go module definition
-├── go.sum                  # Dependency checksums
-├── Makefile                # Build automation
-├── .gitignore              # Git ignore rules
-├── .golangci.yml           # Linter configuration
-├── AGENTS.md               # Development guidelines
-└── README.md               # Project documentation
+│   ├── modules/            # 信息采集模块
+│   │   ├── system/         # 系统信息
+│   │   ├── hardware/       # 硬件信息 (CPU, GPU, 内存, 磁盘)
+│   │   │   ├── hardware.go          # 通用硬件接口
+│   │   │   ├── hardware_windows.go  # Windows 特定实现
+│   │   │   └── hardware_other.go    # 非 Windows 实现
+│   │   └── network/        # 网络信息
+│   ├── display/            # 显示格式化
+│   │   ├── ascii.go        # ASCII 艺术渲染
+│   │   ├── colors.go       # 颜色支持
+│   │   └── formatter.go    # 输出格式化
+│   └── utils/              # 工具函数
+├── dist/                   # 构建输出（生成，已 gitignore）
+├── configs/                # 配置文件
+│   └── default.json        # 默认配置
+├── logos/                  # ASCII 徽标文件
+├── go.mod                  # Go 模块定义
+├── go.sum                  # 依赖校验和
+├── Makefile                # 构建自动化
+├── .gitignore              # Git 忽略规则
+├── .golangci.yml           # 代码检查器配置
+├── AGENTS.md               # 开发指南
+└── README.md               # 项目文档
 ```
 
-## Platform-Specific Implementations
+## 平台特定实现
 
 ### Windows
-- **CPU Detection**: Registry queries for CPU model and frequency
-- **GPU Detection**: WMI queries (Win32_VideoController) for GPU information
-- **Disk Detection**: Multi-disk support with drive letters using Windows API
-- **Memory**: Windows GlobalMemoryStatusEx API
+- **CPU 检测**: 通过注册表查询获取 CPU 型号和频率
+- **GPU 检测**: 使用 WMI 查询 (Win32_VideoController) 获取 GPU 信息
+- **磁盘检测**: 使用 Windows API 支持多磁盘和盘符
+- **内存**: 使用 Windows GlobalMemoryStatusEx API
 
 ### Linux/macOS
-- **CPU Detection**: Generic implementation with runtime.NumCPU()
-- **GPU Detection**: OS-specific placeholder implementations
-- **Disk Detection**: Single disk placeholder
-- **Memory**: Placeholder values (to be implemented with system-specific calls)
+- **CPU 检测**: 使用 runtime.NumCPU() 的通用实现
+- **GPU 检测**: 操作系统特定的占位符实现
+- **磁盘检测**: 单磁盘占位符
+- **内存**: 占位符值（将使用系统特定调用实现）
 
-## GPU Information Detection
+## GPU 信息检测
 
-The GPU module provides detailed graphics card information:
+GPU 模块提供详细的显卡信息：
 
-### Windows Implementation
-- Uses Windows Management Instrumentation (WMI) via PowerShell
-- Queries `Win32_VideoController` class for GPU details
-- Extracts: Name, Vendor, VRAM, Driver Version
-- Supports multiple GPUs
-- Automatic vendor detection (NVIDIA, AMD, Intel, Microsoft)
+### Windows 实现
+- 使用 Windows Management Instrumentation (WMI) 通过 PowerShell
+- 查询 `Win32_VideoController` 类获取 GPU 详情
+- 提取: 名称、供应商、显存、驱动版本
+- 支持多个 GPU
+- 自动供应商检测（NVIDIA、AMD、Intel、Microsoft）
 
-### Example Output
-```
-GPU Information:
-----------------
-GPU:
-  Name           : NVIDIA GeForce RTX 4060 Laptop GPU
-  Vendor         : NVIDIA
-  VRAM           : 4.00 GiB
-  Driver         : 32.0.15.7283
-```
 
-## Example Output
+## 添加新功能
 
-```bash
-$ hardfetch --all
+1. 在 `internal/` 下创建适当的目录结构
+2. 为新功能编写测试
+3. 更新 `cmd/hardfetch/main.go` 以集成新功能
+4. 运行测试并确保通过
+5. 如需要更新文档
 
-System Information:
-------------------
-OS             : windows
-Arch           : amd64
-Kernel         : Windows
-Hostname       : DESKTOP-EXAMPLE
-Uptime         : 2 days, 5 hours
+## 代码风格
 
-CPU Information:
-----------------
-Model          : Intel Core i7-12700K
-Cores          : 12
-Threads        : 20
-Frequency      : 3.60 GHz
-Architecture   : x64
+请遵循 [AGENTS.md](AGENTS.md) 中的指南：
+- 导入组织
+- 命名约定
+- 错误处理
+- 函数设计
+- 类型安全
+- 注释和文档
 
-GPU Information:
-----------------
-GPU:
-  Name           : NVIDIA GeForce RTX 3070
-  Vendor         : NVIDIA
-  VRAM           : 8.00 GiB
-  Driver         : 31.0.15.5123
-
-Memory Information:
--------------------
-Total          : 32.00 GiB
-Used           : 8.42 GiB
-Available      : 23.58 GiB
-Free           : 23.58 GiB
-
-Disk Information:
------------------
-Drive C::
-  Total          : 512.00 GiB
-  Used           : 256.42 GiB
-  Free           : 255.58 GiB
-
-Drive D::
-  Total          : 1.00 TiB
-  Used           : 512.34 GiB
-  Free           : 511.66 GiB
-
-Network Information:
---------------------
-Hostname       : DESKTOP-EXAMPLE
-Local IP       : 192.168.1.100
-Public IP      : 203.0.113.1
-Interfaces     : Ethernet (192.168.1.100), Wi-Fi (192.168.1.101)
-```
-
-## Adding New Features
-
-1. Create appropriate directory structure under `internal/`
-2. Write tests for new functionality
-3. Update `cmd/hardfetch/main.go` to integrate new features
-4. Run tests and ensure they pass
-5. Update documentation if needed
-
-## Code Style
-
-Follow the guidelines in [AGENTS.md](AGENTS.md) for:
-- Import organization
-- Naming conventions
-- Error handling
-- Function design
-- Type safety
-- Comments and documentation
-
-## License
+## 许可证
 
 MIT
