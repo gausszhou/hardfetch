@@ -1,6 +1,6 @@
 //go:build windows
 
-package collector
+package detect
 
 import (
 	"encoding/json"
@@ -9,46 +9,7 @@ import (
 	"sync"
 )
 
-type memoryStatusEx struct {
-	dwLength                uint32
-	dwMemoryLoad            uint32
-	ullTotalPhys            uint64
-	ullAvailPhys            uint64
-	ullTotalPageFile        uint64
-	ullAvailPageFile        uint64
-	ullTotalVirtual         uint64
-	ullAvailVirtual         uint64
-	ullAvailExtendedVirtual uint64
-}
-
-type systemInfo struct {
-	wProcessorArchitecture      uint16
-	wReserved                   uint16
-	dwPageSize                  uint32
-	lpMinimumApplicationAddress uintptr
-	lpMaximumApplicationAddress uintptr
-	dwActiveProcessorMask       uintptr
-	dwNumberOfProcessors        uint32
-	dwProcessorType             uint32
-	dwAllocationGranularity     uint32
-	wProcessorLevel             uint16
-	wProcessorRevision          uint16
-}
-
-var (
-	collectorInstance *WindowsCollector
-	collectorOnce     sync.Once
-)
-
-type WindowsCollector struct {
-	mu         sync.RWMutex
-	SystemInfo *SystemInfoResult
-	Hardware   *HardwareResult
-	Battery    *BatteryResult
-	Network    *NetworkResult
-}
-
-type SystemInfoResult struct {
+type systemInfoResult struct {
 	Hostname   string `json:"Hostname"`
 	Model      string `json:"Model"`
 	OSVersion  string `json:"OSVersion"`
@@ -66,24 +27,24 @@ type SystemInfoResult struct {
 	Processors int    `json:"Processors"`
 }
 
-type GPUResult struct {
+type gpuResult struct {
 	Name          string `json:"Name"`
 	Vendor        string `json:"Vendor"`
 	VRAM          uint64 `json:"VRAM"`
 	DriverVersion string `json:"DriverVersion"`
 }
 
-type HardwareResult struct {
+type hardwareResult struct {
 	Memory      uint64       `json:"Memory"`
 	MemoryUsed  uint64       `json:"MemoryUsed"`
 	SwapTotal   uint64       `json:"SwapTotal"`
 	SwapUsed    uint64       `json:"SwapUsed"`
-	GPUs        []GPUResult  `json:"GPUs"`
-	Disks       []DiskResult `json:"Disks"`
+	GPUs        []gpuResult  `json:"GPUs"`
+	Disks       []diskResult `json:"Disks"`
 	MonitorName string       `json:"MonitorName"`
 }
 
-type DiskResult struct {
+type diskResult struct {
 	Drive      string `json:"Drive"`
 	Total      uint64 `json:"Total"`
 	Used       uint64 `json:"Used"`
@@ -91,30 +52,43 @@ type DiskResult struct {
 	FileSystem string `json:"FileSystem"`
 }
 
-type BatteryResult struct {
+type batteryResult struct {
 	Percentage int    `json:"Percentage"`
 	Status     string `json:"Status"`
 }
 
-type NetworkResult struct {
+type networkResult struct {
 	LocalIP    string            `json:"LocalIP"`
-	Interfaces []InterfaceResult `json:"Interfaces"`
+	Interfaces []interfaceResult `json:"Interfaces"`
 }
 
-type InterfaceResult struct {
+type interfaceResult struct {
 	Name string `json:"Name"`
 	IP   string `json:"IP"`
 }
 
-func GetCollector() *WindowsCollector {
+var (
+	collectorInstance *windowsCollector
+	collectorOnce     sync.Once
+)
+
+type windowsCollector struct {
+	mu         sync.RWMutex
+	SystemInfo *systemInfoResult
+	Hardware   *hardwareResult
+	Battery    *batteryResult
+	Network    *networkResult
+}
+
+func GetCollector() *windowsCollector {
 	collectorOnce.Do(func() {
-		collectorInstance = &WindowsCollector{}
+		collectorInstance = &windowsCollector{}
 		collectorInstance.collectAll()
 	})
 	return collectorInstance
 }
 
-func (c *WindowsCollector) collectAll() {
+func (c *windowsCollector) collectAll() {
 	var wg sync.WaitGroup
 
 	wg.Add(4)
@@ -138,8 +112,8 @@ func (c *WindowsCollector) collectAll() {
 	wg.Wait()
 }
 
-func (c *WindowsCollector) collectSystemInfo() *SystemInfoResult {
-	result := &SystemInfoResult{}
+func (c *windowsCollector) collectSystemInfo() *systemInfoResult {
+	result := &systemInfoResult{}
 
 	cmd := exec.Command("powershell", "-NoProfile", "-Command", `
 		$ErrorActionPreference = 'SilentlyContinue'
@@ -207,10 +181,10 @@ func (c *WindowsCollector) collectSystemInfo() *SystemInfoResult {
 	return result
 }
 
-func (c *WindowsCollector) collectHardware() *HardwareResult {
-	result := &HardwareResult{
-		GPUs:  make([]GPUResult, 0),
-		Disks: make([]DiskResult, 0),
+func (c *windowsCollector) collectHardware() *hardwareResult {
+	result := &hardwareResult{
+		GPUs:  make([]gpuResult, 0),
+		Disks: make([]diskResult, 0),
 	}
 
 	cmd := exec.Command("powershell", "-NoProfile", "-Command", `
@@ -289,7 +263,7 @@ func (c *WindowsCollector) collectHardware() *HardwareResult {
 				if gpus, ok := hwData.GPUs.([]interface{}); ok {
 					for _, g := range gpus {
 						if gm, ok := g.(map[string]interface{}); ok {
-							gpu := GPUResult{}
+							gpu := gpuResult{}
 							if v, ok := gm["Name"].(string); ok {
 								gpu.Name = v
 							}
@@ -310,7 +284,7 @@ func (c *WindowsCollector) collectHardware() *HardwareResult {
 				if disks, ok := hwData.Disks.([]interface{}); ok {
 					for _, d := range disks {
 						if dm, ok := d.(map[string]interface{}); ok {
-							disk := DiskResult{}
+							disk := diskResult{}
 							if v, ok := dm["Drive"].(string); ok {
 								disk.Drive = v
 							}
@@ -343,8 +317,8 @@ func (c *WindowsCollector) collectHardware() *HardwareResult {
 	return result
 }
 
-func (c *WindowsCollector) collectBattery() *BatteryResult {
-	result := &BatteryResult{
+func (c *windowsCollector) collectBattery() *batteryResult {
+	result := &batteryResult{
 		Percentage: 100,
 		Status:     "AC Connected",
 	}
@@ -381,9 +355,9 @@ func (c *WindowsCollector) collectBattery() *BatteryResult {
 	return result
 }
 
-func (c *WindowsCollector) collectNetwork() *NetworkResult {
-	result := &NetworkResult{
-		Interfaces: make([]InterfaceResult, 0),
+func (c *windowsCollector) collectNetwork() *networkResult {
+	result := &networkResult{
+		Interfaces: make([]interfaceResult, 0),
 	}
 
 	cmd := exec.Command("powershell", "-NoProfile", "-Command", `
@@ -405,7 +379,7 @@ func (c *WindowsCollector) collectNetwork() *NetworkResult {
 		outputStr := strings.TrimSpace(string(output))
 		if outputStr != "" && outputStr != "{}" {
 			var netData struct {
-				Interfaces []InterfaceResult `json:"Interfaces"`
+				Interfaces []interfaceResult `json:"Interfaces"`
 			}
 			if err := json.Unmarshal([]byte(outputStr), &netData); err == nil {
 				result.Interfaces = netData.Interfaces
@@ -460,4 +434,103 @@ func getBatteryStatusText(status int) string {
 	default:
 		return "Unknown"
 	}
+}
+
+func detectSystem() (any, error) {
+	c := GetCollector()
+	return convertToSystemInfo(c.SystemInfo), nil
+}
+
+func detectHardware() (any, error) {
+	c := GetCollector()
+	return convertToHardwareInfo(c.Hardware, c.Battery), nil
+}
+
+func detectNetwork() (any, error) {
+	c := GetCollector()
+	return convertToNetworkInfo(c.Network), nil
+}
+
+func convertToSystemInfo(ci *systemInfoResult) *SystemInfo {
+	if ci == nil {
+		return &SystemInfo{}
+	}
+	return &SystemInfo{
+		Hostname: ci.Hostname,
+		OS:       ci.OSVersion,
+		Host:     ci.Model,
+		Kernel:   ci.Kernel,
+		Shell:    ci.Shell,
+		WM:       ci.WM,
+		WMTheme:  ci.WMTheme,
+		Theme:    ci.Theme,
+		Font:     ci.Font,
+		Cursor:   ci.Cursor,
+		Terminal: ci.Terminal,
+		Locale:   ci.Locale,
+	}
+}
+
+func convertToHardwareInfo(hw *hardwareResult, bat *batteryResult) *HardwareInfo {
+	if hw == nil {
+		return &HardwareInfo{}
+	}
+	info := &HardwareInfo{
+		Memory: &MemoryInfo{
+			Total: hw.Memory,
+			Used:  hw.MemoryUsed,
+		},
+		Swap:  &SwapInfo{},
+		Disks: make([]*DiskInfo, 0),
+		GPUs:  make([]*GPUInfo, 0),
+	}
+
+	if hw.SwapTotal > 0 {
+		info.Swap.Total = hw.SwapTotal
+		info.Swap.Used = hw.SwapUsed
+	}
+
+	for _, d := range hw.Disks {
+		info.Disks = append(info.Disks, &DiskInfo{
+			Drive:      d.Drive,
+			Total:      d.Total,
+			Used:       d.Used,
+			Free:       d.Free,
+			FileSystem: d.FileSystem,
+		})
+	}
+
+	for _, g := range hw.GPUs {
+		info.GPUs = append(info.GPUs, &GPUInfo{
+			Name:          g.Name,
+			Vendor:        g.Vendor,
+			VRAM:          g.VRAM,
+			DriverVersion: g.DriverVersion,
+		})
+	}
+
+	if bat != nil {
+		info.Battery = &BatteryInfo{
+			Percentage: bat.Percentage,
+			Status:     bat.Status,
+		}
+	}
+
+	return info
+}
+
+func convertToNetworkInfo(ni *networkResult) *NetworkInfo {
+	if ni == nil {
+		return &NetworkInfo{}
+	}
+	info := &NetworkInfo{
+		LocalIP: ni.LocalIP,
+	}
+	for _, iface := range ni.Interfaces {
+		info.Interfaces = append(info.Interfaces, NetworkInterface{
+			Name:      iface.Name,
+			IPAddress: iface.IP,
+		})
+	}
+	return info
 }
