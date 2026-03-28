@@ -1,12 +1,14 @@
 package gpuinfo
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Info struct {
@@ -32,7 +34,22 @@ func Get() ([]*Info, error) {
 }
 
 func getGPUInfoWindows() ([]*Info, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_VideoController|Select-Object Name,AdapterRAM,DriverVersion,AdapterDACType|ConvertTo-Json -Compress -Depth 2`)
+	script := `
+$ErrorActionPreference='SilentlyContinue'
+$gpu = Get-CimInstance Win32_VideoController | Select-Object Name,AdapterRAM,DriverVersion,AdapterDACType | ForEach-Object {
+	@{
+		Name = $_.Name
+		AdapterRAM = $_.AdapterRAM
+		DriverVersion = $_.DriverVersion
+		AdapterDACType = $_.AdapterDACType
+		IsNvidia = ($_.Name -match 'nvidia|geforce')
+		IsAMD = ($_.Name -match 'amd|radeon')
+		IsIntel = ($_.Name -match 'intel')
+	}
+}
+$gpu | ConvertTo-Json -Compress
+`
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", script)
 	output, err := cmd.Output()
 	if err != nil {
 		return []*Info{{Name: "Unknown"}}, nil
@@ -48,6 +65,9 @@ func getGPUInfoWindows() ([]*Info, error) {
 		AdapterRAM     float64 `json:"AdapterRAM"`
 		DriverVersion  string  `json:"DriverVersion"`
 		AdapterDACType string  `json:"AdapterDACType"`
+		IsNvidia       bool    `json:"IsNvidia"`
+		IsAMD          bool    `json:"IsAMD"`
+		IsIntel        bool    `json:"IsIntel"`
 	}
 
 	var gpus []gpuData
@@ -74,16 +94,12 @@ func getGPUInfoWindows() ([]*Info, error) {
 		freq := ""
 		gpuType := "Integrated"
 
-		lowerName := strings.ToLower(g.Name)
-		isNvidia := strings.Contains(lowerName, "nvidia") || strings.Contains(lowerName, "geforce")
-		isAMD := strings.Contains(lowerName, "amd") || strings.Contains(lowerName, "radeon") || strings.Contains(lowerName, "intel") || strings.Contains(lowerName, "xe")
-		isDiscrete := isNvidia || isAMD
-
+		isDiscrete := g.IsNvidia || g.IsAMD
 		if isDiscrete {
 			gpuType = "Discrete"
 		}
 
-		if isNvidia {
+		if g.IsNvidia {
 			if i < len(nvidiaFreq) {
 				freq = nvidiaFreq[i]
 			}
@@ -91,7 +107,7 @@ func getGPUInfoWindows() ([]*Info, error) {
 				vramStr = nvidiaVRAM[i]
 				vram = uint64(float64(vram) * 1024 * 1024)
 			}
-		} else if isAMD {
+		} else if g.IsAMD {
 			if i < len(amdFreq) {
 				freq = amdFreq[i]
 			}
@@ -122,7 +138,9 @@ func getGPUInfoWindows() ([]*Info, error) {
 }
 
 func getNvidiaSMI() ([]string, []string) {
-	cmd := exec.Command("nvidia-smi", "--query-gpu=name,clocks.max.sm,memory.total", "--format=csv,noheader")
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "nvidia-smi", "--query-gpu=name,clocks.max.sm,memory.total", "--format=csv,noheader")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, nil
@@ -148,7 +166,9 @@ func getNvidiaSMI() ([]string, []string) {
 }
 
 func getROCmSMI() ([]string, []string) {
-	cmd := exec.Command("rocm-smi", "--query-gpu=name,clocks.max.memory,memory.totalUsed --csv")
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "rocm-smi", "--query-gpu=name,clocks.max.memory,memory.totalUsed --csv")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, nil
@@ -178,7 +198,9 @@ func getROCmSMI() ([]string, []string) {
 }
 
 func getIntelGPUTop() ([]string, []string) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command",
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-Command",
 		`$ErrorActionPreference='SilentlyContinue';$gpu = Get-CimInstance Win32_VideoController | Where-Object { $_.Name -like '*Intel*' }; if($gpu) { Write-Output "$($gpu.Name),$($gpu.AdapterRAM)" }`)
 	output, err := cmd.Output()
 	if err != nil {

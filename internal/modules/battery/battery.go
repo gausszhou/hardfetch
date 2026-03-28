@@ -1,11 +1,13 @@
 package battery
 
 import (
+	"context"
 	"encoding/json"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Info struct {
@@ -36,7 +38,9 @@ func getBatteryInfoWindows() (*Info, error) {
 		Status:     "AC Connected",
 	}
 
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_Battery|Select-Object EstimatedChargeRemaining,BatteryStatus|ConvertTo-Json -Compress`)
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_Battery|Select-Object EstimatedChargeRemaining,BatteryStatus|ConvertTo-Json -Compress`)
 	output, err := cmd.Output()
 	if err != nil {
 		return info, nil
