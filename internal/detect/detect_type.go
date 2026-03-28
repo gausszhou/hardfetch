@@ -116,6 +116,9 @@ type DiskInfo struct {
 type GPUInfo struct {
 	Name          string
 	VRAM          uint64
+	VRAMString    string
+	Frequency     string
+	Type          string
 	DriverVersion string
 }
 

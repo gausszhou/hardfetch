@@ -144,16 +144,17 @@ func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, e
 	color := GetColorCode("red")
 
 	for _, gpu := range hwInfo.GPUs {
-		fields := []struct {
-			label string
-			value string
-		}{
-			{"GPU", gpu.Name},
+		value := gpu.Name
+		if gpu.Frequency != "" {
+			value += " @ " + gpu.Frequency
 		}
-
-		for _, field := range fields {
-			fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
+		if gpu.VRAMString != "" {
+			value += " (" + gpu.VRAMString + ")"
 		}
+		if gpu.Type != "" {
+			value += " [" + gpu.Type + "]"
+		}
+		fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, "GPU", "\033[0m", value)
 	}
 }
 

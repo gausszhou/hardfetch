@@ -112,6 +112,9 @@ func convertGPUs(gpus []*gpuinfo.Info) []*GPUInfo {
 		result = append(result, &GPUInfo{
 			Name:          g.Name,
 			VRAM:          g.VRAM,
+			VRAMString:    g.VRAMString,
+			Frequency:     g.Frequency,
+			Type:          g.Type,
 			DriverVersion: g.DriverVersion,
 		})
 	}

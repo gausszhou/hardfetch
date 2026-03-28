@@ -2,6 +2,7 @@ package gpuinfo
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -11,6 +12,9 @@ import (
 type Info struct {
 	Name          string
 	VRAM          uint64
+	VRAMString    string
+	Frequency     string
+	Type          string
 	DriverVersion string
 }
 
@@ -28,7 +32,7 @@ func Get() ([]*Info, error) {
 }
 
 func getGPUInfoWindows() ([]*Info, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_VideoController|Select-Object Name,AdapterRAM,DriverVersion|ConvertTo-Json -Compress -Depth 2`)
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_VideoController|Select-Object Name,AdapterRAM,DriverVersion,AdapterDACType|ConvertTo-Json -Compress -Depth 2`)
 	output, err := cmd.Output()
 	if err != nil {
 		return []*Info{{Name: "Unknown"}}, nil
@@ -40,9 +44,10 @@ func getGPUInfoWindows() ([]*Info, error) {
 	}
 
 	type gpuData struct {
-		Name          string  `json:"Name"`
-		AdapterRAM    float64 `json:"AdapterRAM"`
-		DriverVersion string  `json:"DriverVersion"`
+		Name           string  `json:"Name"`
+		AdapterRAM     float64 `json:"AdapterRAM"`
+		DriverVersion  string  `json:"DriverVersion"`
+		AdapterDACType string  `json:"AdapterDACType"`
 	}
 
 	var gpus []gpuData
@@ -58,17 +63,73 @@ func getGPUInfoWindows() ([]*Info, error) {
 		gpus = []gpuData{gpu}
 	}
 
+	nvidiaFreq, nvidiaVRAM := getNvidiaSMI()
+
 	result := make([]*Info, 0, len(gpus))
-	for _, g := range gpus {
+	for i, g := range gpus {
+		vram := uint64(g.AdapterRAM)
+		vramStr := formatVRAM(vram)
+		freq := ""
+		gpuType := "Integrated"
+
+		if strings.Contains(strings.ToLower(g.Name), "nvidia") || strings.Contains(strings.ToLower(g.Name), "amd") || strings.Contains(strings.ToLower(g.Name), "radeon") {
+			gpuType = "Discrete"
+		}
+
+		if i < len(nvidiaFreq) {
+			freq = nvidiaFreq[i]
+		}
+		if i < len(nvidiaVRAM) && nvidiaVRAM[i] != "" {
+			vramStr = nvidiaVRAM[i]
+			vram = uint64(float64(vram) * 1024 * 1024)
+		}
+
 		info := &Info{
 			Name:          g.Name,
-			VRAM:          uint64(g.AdapterRAM),
+			VRAM:          vram,
+			VRAMString:    vramStr,
+			Frequency:     freq,
+			Type:          gpuType,
 			DriverVersion: g.DriverVersion,
 		}
 		result = append(result, info)
 	}
 
 	return result, nil
+}
+
+func getNvidiaSMI() ([]string, []string) {
+	cmd := exec.Command("nvidia-smi", "--query-gpu=name,clocks.max.sm,memory.total", "--format=csv,noheader")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, nil
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	freqs := make([]string, 0, len(lines))
+	vrams := make([]string, 0, len(lines))
+	for _, line := range lines {
+		parts := strings.Split(line, ",")
+		if len(parts) >= 3 {
+			freqMHz := strings.TrimSpace(strings.Replace(parts[1], " MHz", "", 1))
+			memMiB := strings.TrimSpace(strings.Replace(parts[2], " MiB", "", 1))
+			if freq, err := strconv.ParseFloat(freqMHz, 64); err == nil {
+				freqs = append(freqs, fmt.Sprintf("%.2f GHz", freq/1000))
+			}
+			if mem, err := strconv.ParseFloat(memMiB, 64); err == nil {
+				vrams = append(vrams, fmt.Sprintf("%.2f GiB", mem/1024))
+			}
+		}
+	}
+	return freqs, vrams
+}
+
+func formatVRAM(bytes uint64) string {
+	if bytes == 0 {
+		return "0 B"
+	}
+	gb := float64(bytes) / (1024 * 1024 * 1024)
+	return fmt.Sprintf("%.2f GiB", gb)
 }
 
 func getGPUInfoDarwin() ([]*Info, error) {
