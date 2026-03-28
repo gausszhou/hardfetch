@@ -1,9 +1,8 @@
 package network
 
 import (
-	"encoding/json"
-	"os/exec"
-	"runtime"
+	"net"
+	"os"
 	"strings"
 )
 
@@ -21,134 +20,65 @@ type Info struct {
 }
 
 func Get() (*Info, error) {
-	switch runtime.GOOS {
-	case "windows":
-		return getNetworkInfoWindows()
-	case "darwin":
-		return getNetworkInfoDarwin()
-	case "linux":
-		return getNetworkInfoLinux()
-	default:
-		return &Info{Hostname: "Unknown", LocalIP: "", Interfaces: []Interface{}}, nil
+	info := &Info{
+		Hostname:   "Unknown",
+		LocalIP:    "",
+		Interfaces: []Interface{},
 	}
-}
 
-func getNetworkInfoWindows() (*Info, error) {
-	cmd := exec.Command("hostname")
-	output, _ := cmd.Output()
-	hostname := strings.TrimSpace(string(output))
+	hostname, _ := os.Hostname()
+	info.Hostname = hostname
 
-	cmd = exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-NetIPAddress -AddressFamily IPv4|Where-Object{$_.IPAddress -notlike'127.*' -and $_.IPAddress -notlike'169.254.*'}|Select-Object InterfaceAlias,IPAddress|ConvertTo-Json -Compress`)
-	output, err := cmd.Output()
+	ifaces, err := net.Interfaces()
 	if err != nil {
-		return &Info{Hostname: hostname, LocalIP: "", Interfaces: []Interface{}}, nil
+		return info, nil
 	}
 
-	outputStr := strings.TrimSpace(string(output))
-	if outputStr == "" || outputStr == "{}" {
-		return &Info{Hostname: hostname, LocalIP: "", Interfaces: []Interface{}}, nil
-	}
-
-	type adapterData struct {
-		Name string `json:"InterfaceAlias"`
-		IP   string `json:"IPAddress"`
-	}
-
-	var adapters []adapterData
-	if strings.HasPrefix(outputStr, "[") {
-		if err := json.Unmarshal([]byte(outputStr), &adapters); err != nil {
-			return &Info{Hostname: hostname, LocalIP: "", Interfaces: []Interface{}}, nil
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
 		}
-	} else {
-		var adapter adapterData
-		if err := json.Unmarshal([]byte(outputStr), &adapter); err != nil {
-			return &Info{Hostname: hostname, LocalIP: "", Interfaces: []Interface{}}, nil
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
 		}
-		adapters = []adapterData{adapter}
-	}
 
-	interfaces := make([]Interface, 0, len(adapters))
-	var localIP string
-	for _, iface := range adapters {
-		interfaces = append(interfaces, Interface{
-			Name:      iface.Name,
-			IPAddress: iface.IP,
-		})
-		if localIP == "" && iface.IP != "" {
-			localIP = iface.IP
-		}
-	}
+		for _, addr := range addrs {
+			ip := parseIP(addr.String())
+			if ip == "" || isLinkLocal(ip) {
+				continue
+			}
 
-	return &Info{
-		Hostname:   hostname,
-		LocalIP:    localIP,
-		Interfaces: interfaces,
-	}, nil
-}
-
-func getNetworkInfoDarwin() (*Info, error) {
-	cmd := exec.Command("hostname")
-	output, _ := cmd.Output()
-	hostname := strings.TrimSpace(string(output))
-
-	cmd = exec.Command("ipconfig", "getifaddr", "en0")
-	output, _ = cmd.Output()
-	localIP := strings.TrimSpace(string(output))
-
-	cmd = exec.Command("networksetup", "-listallhardwareports")
-	output, _ = cmd.Output()
-
-	interfaces := make([]Interface, 0)
-	lines := strings.Split(string(output), "\n")
-	currentName := ""
-	for _, line := range lines {
-		if strings.HasPrefix(line, "Hardware Port:") {
-			currentName = strings.TrimSpace(strings.Split(line, ":")[1])
-		} else if strings.HasPrefix(line, "Device:") && currentName != "" {
-			dev := strings.TrimSpace(strings.Split(line, ":")[1])
-			interfaces = append(interfaces, Interface{
-				Name:      currentName,
-				IPAddress: dev,
+			info.Interfaces = append(info.Interfaces, Interface{
+				Name:      iface.Name,
+				IPAddress: ip,
 			})
+			if info.LocalIP == "" {
+				info.LocalIP = ip
+			}
 		}
 	}
 
-	return &Info{
-		Hostname:   hostname,
-		LocalIP:    localIP,
-		Interfaces: interfaces,
-	}, nil
+	return info, nil
 }
 
-func getNetworkInfoLinux() (*Info, error) {
-	cmd := exec.Command("hostname")
-	output, _ := cmd.Output()
-	hostname := strings.TrimSpace(string(output))
-
-	cmd = exec.Command("hostname", "-I")
-	output, _ = cmd.Output()
-	ips := strings.Fields(strings.TrimSpace(string(output)))
-
-	interfaces := make([]Interface, 0)
-	for i, ip := range ips {
-		ifname := "eth" + string(rune('0'+i))
-		if len(ips) > 1 {
-			ifname = "wlan" + string(rune('0'+i))
-		}
-		interfaces = append(interfaces, Interface{
-			Name:      ifname,
-			IPAddress: ip,
-		})
+func parseIP(addr string) string {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return ""
 	}
+	return ip.String()
+}
 
-	localIP := ""
-	if len(ips) > 0 {
-		localIP = ips[0]
+func isLinkLocal(ipStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
 	}
-
-	return &Info{
-		Hostname:   hostname,
-		LocalIP:    localIP,
-		Interfaces: interfaces,
-	}, nil
+	ip4 := ip.To4()
+	if ip4 != nil && ip4[0] == 169 && ip4[1] == 254 {
+		return true
+	}
+	return strings.HasPrefix(ipStr, "fe80:")
 }

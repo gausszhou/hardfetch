@@ -1,12 +1,14 @@
 package gpuinfo
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 type Info struct {
@@ -32,186 +34,169 @@ func Get() ([]*Info, error) {
 }
 
 func getGPUInfoWindows() ([]*Info, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_VideoController|Select-Object Name,AdapterRAM,DriverVersion,AdapterDACType|ConvertTo-Json -Compress -Depth 2`)
-	output, err := cmd.Output()
-	if err != nil {
+	var wg sync.WaitGroup
+	var nvidiaGpus, amdGpus, intelGpus []*Info
+
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		nvidiaGpus = getNvidiaGPUInfo()
+	}()
+	go func() {
+		defer wg.Done()
+		amdGpus = getAmdGPUInfo()
+	}()
+	go func() {
+		defer wg.Done()
+		intelGpus = getIntelGPUInfo()
+	}()
+	wg.Wait()
+
+	result := make([]*Info, 0)
+	result = append(result, nvidiaGpus...)
+	result = append(result, amdGpus...)
+	result = append(result, intelGpus...)
+
+	if len(result) == 0 {
 		return []*Info{{Name: "Unknown"}}, nil
 	}
-
-	outputStr := strings.TrimSpace(string(output))
-	if outputStr == "" || outputStr == "null" {
-		return []*Info{{Name: "Unknown"}}, nil
-	}
-
-	type gpuData struct {
-		Name           string  `json:"Name"`
-		AdapterRAM     float64 `json:"AdapterRAM"`
-		DriverVersion  string  `json:"DriverVersion"`
-		AdapterDACType string  `json:"AdapterDACType"`
-	}
-
-	var gpus []gpuData
-	if strings.HasPrefix(outputStr, "[") {
-		if err := json.Unmarshal([]byte(outputStr), &gpus); err != nil {
-			return []*Info{{Name: "Unknown"}}, nil
-		}
-	} else {
-		var gpu gpuData
-		if err := json.Unmarshal([]byte(outputStr), &gpu); err != nil {
-			return []*Info{{Name: "Unknown"}}, nil
-		}
-		gpus = []gpuData{gpu}
-	}
-
-	nvidiaFreq, nvidiaVRAM := getNvidiaSMI()
-	amdFreq, amdVRAM := getROCmSMI()
-	intelFreq, intelVRAM := getIntelGPUTop()
-
-	result := make([]*Info, 0, len(gpus))
-	for i, g := range gpus {
-		vram := uint64(g.AdapterRAM)
-		vramStr := formatVRAM(vram)
-		freq := ""
-		gpuType := "Integrated"
-
-		lowerName := strings.ToLower(g.Name)
-		isNvidia := strings.Contains(lowerName, "nvidia") || strings.Contains(lowerName, "geforce")
-		isAMD := strings.Contains(lowerName, "amd") || strings.Contains(lowerName, "radeon") || strings.Contains(lowerName, "intel") || strings.Contains(lowerName, "xe")
-		isDiscrete := isNvidia || isAMD
-
-		if isDiscrete {
-			gpuType = "Discrete"
-		}
-
-		if isNvidia {
-			if i < len(nvidiaFreq) {
-				freq = nvidiaFreq[i]
-			}
-			if i < len(nvidiaVRAM) && nvidiaVRAM[i] != "" {
-				vramStr = nvidiaVRAM[i]
-				vram = uint64(float64(vram) * 1024 * 1024)
-			}
-		} else if isAMD {
-			if i < len(amdFreq) {
-				freq = amdFreq[i]
-			}
-			if i < len(amdVRAM) && amdVRAM[i] != "" {
-				vramStr = amdVRAM[i]
-			}
-		} else {
-			if i < len(intelFreq) {
-				freq = intelFreq[i]
-			}
-			if i < len(intelVRAM) && intelVRAM[i] != "" {
-				vramStr = intelVRAM[i]
-			}
-		}
-
-		info := &Info{
-			Name:          g.Name,
-			VRAM:          vram,
-			VRAMString:    vramStr,
-			Frequency:     freq,
-			Type:          gpuType,
-			DriverVersion: g.DriverVersion,
-		}
-		result = append(result, info)
-	}
-
 	return result, nil
 }
 
-func getNvidiaSMI() ([]string, []string) {
-	cmd := exec.Command("nvidia-smi", "--query-gpu=name,clocks.max.sm,memory.total", "--format=csv,noheader")
+func getNvidiaGPUInfo() []*Info {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "nvidia-smi", "--query-gpu=name,memory.total,clocks.max.sm,driver_version", "--format=csv,noheader")
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, nil
+		return nil
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	freqs := make([]string, 0, len(lines))
-	vrams := make([]string, 0, len(lines))
+	gpus := make([]*Info, 0, len(lines))
 	for _, line := range lines {
 		parts := strings.Split(line, ",")
-		if len(parts) >= 3 {
-			freqMHz := strings.TrimSpace(strings.Replace(parts[1], " MHz", "", 1))
-			memMiB := strings.TrimSpace(strings.Replace(parts[2], " MiB", "", 1))
-			if freq, err := strconv.ParseFloat(freqMHz, 64); err == nil {
-				freqs = append(freqs, fmt.Sprintf("%.2f GHz", freq/1000))
+		if len(parts) >= 4 {
+			name := strings.TrimSpace(parts[0])
+			memStr := strings.TrimSpace(strings.Replace(parts[1], " MiB", "", 1))
+			freqStr := strings.TrimSpace(strings.Replace(parts[2], " MHz", "", 1))
+			driver := strings.TrimSpace(parts[3])
+
+			vram := uint64(0)
+			vramStr := "0 GiB"
+			if mem, err := strconv.ParseFloat(memStr, 64); err == nil {
+				vram = uint64(mem * 1024 * 1024)
+				vramStr = fmt.Sprintf("%.2f GiB", mem/1024)
 			}
-			if mem, err := strconv.ParseFloat(memMiB, 64); err == nil {
-				vrams = append(vrams, fmt.Sprintf("%.2f GiB", mem/1024))
+
+			freq := ""
+			if f, err := strconv.ParseFloat(freqStr, 64); err == nil {
+				freq = fmt.Sprintf("%.2f GHz", f/1000)
 			}
+
+			gpus = append(gpus, &Info{
+				Name:          name,
+				VRAM:          vram,
+				VRAMString:    vramStr,
+				Frequency:     freq,
+				Type:          "Discrete",
+				DriverVersion: driver,
+			})
 		}
 	}
-	return freqs, vrams
+	return gpus
 }
 
-func getROCmSMI() ([]string, []string) {
-	cmd := exec.Command("rocm-smi", "--query-gpu=name,clocks.max.memory,memory.totalUsed --csv")
+func getAmdGPUInfo() []*Info {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "rocm-smi", "--query-gpu=name,memory.total,clocks.max.memory,driver_version", "--csv")
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, nil
+		return nil
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(lines) < 2 {
-		return nil, nil
+		return nil
 	}
 
-	freqs := make([]string, 0, len(lines)-1)
-	vrams := make([]string, 0, len(lines)-1)
+	gpus := make([]*Info, 0, len(lines)-1)
 	for i := 1; i < len(lines); i++ {
 		parts := strings.Split(lines[i], ",")
-		if len(parts) >= 3 {
-			freqMHz := strings.TrimSpace(strings.Replace(parts[1], " MHz", "", 1))
-			memMiB := strings.TrimSpace(strings.Replace(parts[2], " MiB", "", 1))
-			if freq, err := strconv.ParseFloat(freqMHz, 64); err == nil {
-				freqs = append(freqs, fmt.Sprintf("%.2f GHz", freq/1000))
+		if len(parts) >= 4 {
+			name := strings.TrimSpace(parts[0])
+			memStr := strings.TrimSpace(strings.Replace(parts[1], " MiB", "", 1))
+			freqStr := strings.TrimSpace(strings.Replace(parts[2], " MHz", "", 1))
+			driver := strings.TrimSpace(parts[3])
+
+			vram := uint64(0)
+			vramStr := "0 GiB"
+			if mem, err := strconv.ParseFloat(memStr, 64); err == nil {
+				vram = uint64(mem * 1024 * 1024)
+				vramStr = fmt.Sprintf("%.2f GiB", mem/1024)
 			}
-			if mem, err := strconv.ParseFloat(memMiB, 64); err == nil {
-				vrams = append(vrams, fmt.Sprintf("%.2f GiB", mem/1024))
+
+			freq := ""
+			if f, err := strconv.ParseFloat(freqStr, 64); err == nil {
+				freq = fmt.Sprintf("%.2f GHz", f/1000)
 			}
+
+			gpus = append(gpus, &Info{
+				Name:          name,
+				VRAM:          vram,
+				VRAMString:    vramStr,
+				Frequency:     freq,
+				Type:          "Discrete",
+				DriverVersion: driver,
+			})
 		}
 	}
-	return freqs, vrams
+	return gpus
 }
 
-func getIntelGPUTop() ([]string, []string) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command",
-		`$ErrorActionPreference='SilentlyContinue';$gpu = Get-CimInstance Win32_VideoController | Where-Object { $_.Name -like '*Intel*' }; if($gpu) { Write-Output "$($gpu.Name),$($gpu.AdapterRAM)" }`)
+func getIntelGPUInfo() []*Info {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-Command",
+		`$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_VideoController | Where-Object { $_.Name -like '*Intel*' } | ForEach-Object { "$($_.Name),$($_.AdapterRAM),$($_.DriverVersion)" }`)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, nil
+		return nil
 	}
 
 	outputStr := strings.TrimSpace(string(output))
 	if outputStr == "" {
-		return nil, nil
+		return nil
 	}
 
 	lines := strings.Split(outputStr, "\n")
-	freqs := make([]string, 0, len(lines))
-	vrams := make([]string, 0, len(lines))
+	gpus := make([]*Info, 0, len(lines))
 	for _, line := range lines {
 		parts := strings.Split(line, ",")
-		if len(parts) >= 2 {
-			memBytes := strings.TrimSpace(parts[1])
-			if mem, err := strconv.ParseFloat(memBytes, 64); err == nil {
-				vrams = append(vrams, fmt.Sprintf("%.2f GiB", mem/(1024*1024*1024)))
-				freqs = append(freqs, "")
+		if len(parts) >= 3 {
+			name := strings.TrimSpace(parts[0])
+			memStr := strings.TrimSpace(parts[1])
+			driver := strings.TrimSpace(parts[2])
+
+			vram := uint64(0)
+			vramStr := "0 GiB"
+			if mem, err := strconv.ParseFloat(memStr, 64); err == nil {
+				vram = uint64(mem)
+				vramStr = fmt.Sprintf("%.2f GiB", mem/1024/1024/1024)
 			}
+
+			gpus = append(gpus, &Info{
+				Name:          name,
+				VRAM:          vram,
+				VRAMString:    vramStr,
+				Frequency:     "",
+				Type:          "Integrated",
+				DriverVersion: driver,
+			})
 		}
 	}
-	return freqs, vrams
-}
-
-func formatVRAM(bytes uint64) string {
-	if bytes == 0 {
-		return "0 B"
-	}
-	gb := float64(bytes) / (1024 * 1024 * 1024)
-	return fmt.Sprintf("%.2f GiB", gb)
+	return gpus
 }
 
 func getGPUInfoDarwin() ([]*Info, error) {

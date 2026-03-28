@@ -53,8 +53,8 @@ func Get() (*Info, error) {
 }
 
 func getWindowsHost() string {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command",
-		`(Get-CimInstance Win32_ComputerSystem).Model`)
+	script := `(Get-CimInstance Win32_ComputerSystem).Model`
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", script)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""

@@ -1,7 +1,10 @@
 package detect
 
 import (
+	"context"
 	"sync"
+
+	"github.com/gausszhou/hardfetch/internal/logger"
 )
 
 type Detector interface {
@@ -53,11 +56,18 @@ func collectAll(detectors []Detector) {
 	var wg sync.WaitGroup
 	wg.Add(len(detectors))
 
+	ctx := context.Background()
+	timer := logger.StartTimer("collectAll")
+	defer timer.Stop()
+
 	for _, d := range detectors {
 		go func(detector Detector) {
 			defer wg.Done()
+			t := logger.StartTimer(detector.Name())
+			defer t.Stop()
 			data, err := detector.Detect()
 			if err != nil {
+				logger.Debug(ctx, "detector error", "name", detector.Name(), "error", err)
 				return
 			}
 			switch detector.Name() {

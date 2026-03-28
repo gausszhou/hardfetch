@@ -1,6 +1,10 @@
 package detect
 
 import (
+	"context"
+	"sync"
+
+	"github.com/gausszhou/hardfetch/internal/logger"
 	"github.com/gausszhou/hardfetch/internal/modules/battery"
 	"github.com/gausszhou/hardfetch/internal/modules/cpuinfo"
 	"github.com/gausszhou/hardfetch/internal/modules/disk"
@@ -11,6 +15,8 @@ import (
 )
 
 func detectSystem() (any, error) {
+	t := logger.StartTimer("system:detail")
+	defer t.Stop()
 	sysInfo, err := sys.Get()
 	if err != nil {
 		sysInfo = &sys.Info{}
@@ -27,31 +33,109 @@ func detectSystem() (any, error) {
 }
 
 func detectHardware() (any, error) {
-	cpu, err := cpuinfo.Get()
-	if err != nil {
-		cpu = &cpuinfo.Info{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	ctx := context.Background()
+
+	cpu := &cpuinfo.Info{}
+	mem := &memory.Info{}
+	swap := &memory.SwapInfo{}
+	gpus := []*gpuinfo.Info{}
+	bat := &battery.Info{}
+	disks := []*disk.Info{}
+
+	detectFn := []struct {
+		name string
+		fn   func()
+	}{
+		{
+			name: "cpu",
+			fn: func() {
+				defer wg.Done()
+				t := logger.StartTimer("hardware:cpu")
+				defer t.Stop()
+				c, err := cpuinfo.Get()
+				mu.Lock()
+				if err == nil {
+					*cpu = *c
+				} else {
+					logger.Debug(ctx, "cpu detect error", "error", err)
+				}
+				mu.Unlock()
+			},
+		},
+		{
+			name: "memory",
+			fn: func() {
+				defer wg.Done()
+				t := logger.StartTimer("hardware:memory")
+				defer t.Stop()
+				m, s, err := memory.Get()
+				mu.Lock()
+				if err == nil {
+					*mem = *m
+					*swap = *s
+				} else {
+					logger.Debug(ctx, "memory detect error", "error", err)
+				}
+				mu.Unlock()
+			},
+		},
+		{
+			name: "gpu",
+			fn: func() {
+				defer wg.Done()
+				t := logger.StartTimer("hardware:gpu")
+				defer t.Stop()
+				g, err := gpuinfo.Get()
+				mu.Lock()
+				if err == nil {
+					gpus = g
+				} else {
+					logger.Debug(ctx, "gpu detect error", "error", err)
+				}
+				mu.Unlock()
+			},
+		},
+		{
+			name: "battery",
+			fn: func() {
+				defer wg.Done()
+				t := logger.StartTimer("hardware:battery")
+				defer t.Stop()
+				b, err := battery.Get()
+				mu.Lock()
+				if err == nil {
+					*bat = *b
+				} else {
+					logger.Debug(ctx, "battery detect error", "error", err)
+				}
+				mu.Unlock()
+			},
+		},
+		{
+			name: "disk",
+			fn: func() {
+				defer wg.Done()
+				t := logger.StartTimer("hardware:disk")
+				defer t.Stop()
+				d, err := disk.Get()
+				mu.Lock()
+				if err == nil {
+					disks = d
+				} else {
+					logger.Debug(ctx, "disk detect error", "error", err)
+				}
+				mu.Unlock()
+			},
+		},
 	}
 
-	mem, swap, err := memory.Get()
-	if err != nil {
-		mem = &memory.Info{}
-		swap = &memory.SwapInfo{}
+	wg.Add(len(detectFn))
+	for _, df := range detectFn {
+		go df.fn()
 	}
-
-	gpus, err := gpuinfo.Get()
-	if err != nil {
-		gpus = []*gpuinfo.Info{}
-	}
-
-	bat, err := battery.Get()
-	if err != nil {
-		bat = &battery.Info{}
-	}
-
-	disks, err := disk.Get()
-	if err != nil {
-		disks = []*disk.Info{}
-	}
+	wg.Wait()
 
 	return &HardwareInfo{
 		CPU: &CPUInfo{
@@ -84,6 +168,8 @@ func detectHardware() (any, error) {
 }
 
 func detectNetwork() (any, error) {
+	t := logger.StartTimer("network:detail")
+	defer t.Stop()
 	net, err := network.Get()
 	if err != nil {
 		net = &network.Info{}
