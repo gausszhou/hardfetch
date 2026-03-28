@@ -2,7 +2,9 @@ package sys
 
 import (
 	"os"
+	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/host"
@@ -35,6 +37,10 @@ func Get() (*Info, error) {
 		}
 	}
 
+	if runtime.GOOS == "windows" {
+		info.Kernel = getKernelVersion()
+	}
+
 	uptime, err := host.BootTime()
 	if err == nil {
 		info.Uptime = time.Duration(time.Now().Unix()-int64(uptime)) * time.Second
@@ -56,4 +62,13 @@ func getHostname() string {
 		return "Unknown"
 	}
 	return hostname
+}
+
+func getKernelVersion() string {
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';$os=Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'; "$($os.CurrentBuild).$($os.UBR)"`)
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
 }
