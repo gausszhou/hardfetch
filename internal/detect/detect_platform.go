@@ -7,6 +7,7 @@ import (
 	"github.com/gausszhou/hardfetch/internal/modules/gpuinfo"
 	"github.com/gausszhou/hardfetch/internal/modules/memory"
 	"github.com/gausszhou/hardfetch/internal/modules/network"
+	"github.com/gausszhou/hardfetch/internal/modules/sys"
 )
 
 func detectSystem() (any, error) {
@@ -14,8 +15,19 @@ func detectSystem() (any, error) {
 	if err != nil {
 		cpu = &cpuinfo.Info{}
 	}
+
+	sysInfo, err := sys.Get()
+	if err != nil {
+		sysInfo = &sys.Info{}
+	}
+
 	return &SystemInfo{
-		Uptime: cpu.Uptime,
+		OS:       sysInfo.OS,
+		Arch:     sysInfo.Arch,
+		Kernel:   sysInfo.Kernel,
+		Hostname: sysInfo.Hostname,
+		Host:     sysInfo.Host,
+		Uptime:   cpu.Uptime,
 	}, nil
 }
 
