@@ -14,7 +14,6 @@ type SystemInfo struct {
 	Hostname string
 	Host     string
 	Uptime   time.Duration
-	Shell    string
 	WM       string
 	WMTheme  string
 	Theme    string

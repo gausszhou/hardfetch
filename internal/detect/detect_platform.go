@@ -23,7 +23,6 @@ func detectSystem() (any, error) {
 		Hostname: sysInfo.Hostname,
 		Host:     sysInfo.Host,
 		Uptime:   sysInfo.Uptime,
-		Shell:    sysInfo.Shell,
 	}, nil
 }
 

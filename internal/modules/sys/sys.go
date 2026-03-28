@@ -2,15 +2,12 @@ package sys
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/shirou/gopsutil/v4/host"
-	"golang.org/x/sys/windows"
 )
 
 type Info struct {
@@ -20,30 +17,31 @@ type Info struct {
 	Hostname string
 	Host     string
 	Uptime   time.Duration
-	Shell    string
 }
 
 func Get() (*Info, error) {
+	hostInfo, err := host.Info()
+	if err != nil {
+		hostInfo = &host.InfoStat{}
+	}
+
 	info := &Info{
 		OS:       runtime.GOOS,
 		Arch:     runtime.GOARCH,
-		Hostname: getHostname(),
+		Hostname: hostInfo.Hostname,
 	}
 
 	switch runtime.GOOS {
 	case "windows":
-		info.OS = getWindowsOS()
+		info.OS = fmt.Sprintf("%s %s", hostInfo.Platform, hostInfo.PlatformVersion)
 		info.Host = getWindowsHost()
-		info.Kernel = getWindowsKernel()
-		info.Shell = getWindowsShell()
+		info.Kernel = hostInfo.KernelVersion
 	case "darwin":
 		info.Host = getDarwinHost()
 		info.Kernel = getDarwinKernel()
-		info.Shell = getDarwinShell()
 	case "linux":
 		info.Host = getLinuxHost()
 		info.Kernel = getLinuxKernel()
-		info.Shell = getLinuxShell()
 	}
 
 	uptime, err := host.BootTime()
@@ -54,109 +52,14 @@ func Get() (*Info, error) {
 	return info, nil
 }
 
-func getHostname() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return "Unknown"
-	}
-	return hostname
-}
-
-func getWindowsOS() string {
-	var hKey windows.Handle
-	keyPath, _ := windows.UTF16PtrFromString(`SOFTWARE\Microsoft\Windows NT\CurrentVersion`)
-	if err := windows.RegOpenKeyEx(windows.HKEY_LOCAL_MACHINE, keyPath, 0, windows.KEY_READ|windows.KEY_WOW64_64KEY, &hKey); err != nil {
-		return "Windows"
-	}
-	defer windows.RegCloseKey(hKey)
-
-	productName := queryRegString(hKey, "ProductName")
-	displayVersion := queryRegString(hKey, "DisplayVersion")
-	build := queryRegString(hKey, "CurrentBuild")
-
-	osStr := "Windows"
-	if productName != "" {
-		osStr = productName
-	}
-	if displayVersion != "" {
-		osStr += " " + displayVersion
-	}
-	if build != "" {
-		osStr += " (" + build + ")"
-	}
-	osStr += " " + runtime.GOARCH
-
-	return osStr
-}
-
 func getWindowsHost() string {
-	var hKey windows.Handle
-	keyPath, _ := windows.UTF16PtrFromString(`SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName`)
-	if err := windows.RegOpenKeyEx(windows.HKEY_LOCAL_MACHINE, keyPath, 0, windows.KEY_READ|windows.KEY_WOW64_64KEY, &hKey); err != nil {
-		return ""
-	}
-	defer windows.RegCloseKey(hKey)
-
-	return queryRegString(hKey, "ComputerName")
-}
-
-func getWindowsKernel() string {
-	var hKey windows.Handle
-	keyPath, _ := windows.UTF16PtrFromString(`SOFTWARE\Microsoft\Windows NT\CurrentVersion`)
-	if err := windows.RegOpenKeyEx(windows.HKEY_LOCAL_MACHINE, keyPath, 0, windows.KEY_READ|windows.KEY_WOW64_64KEY, &hKey); err != nil {
-		return ""
-	}
-	defer windows.RegCloseKey(hKey)
-
-	build := queryRegString(hKey, "CurrentBuild")
-	ubr := queryRegString(hKey, "UBR")
-
-	kernel := "WIN32_NT 10.0"
-	if build != "" {
-		kernel += "." + build
-	}
-	if ubr != "" {
-		kernel += "." + ubr
-	}
-
-	return kernel
-}
-
-func getWindowsShell() string {
-	comspec := os.Getenv("COMSPEC")
-	if comspec != "" {
-		parts := strings.Split(comspec, "\\")
-		if len(parts) > 0 {
-			return parts[len(parts)-1]
-		}
-	}
-	shell := os.Getenv("SHELL")
-	if shell != "" {
-		parts := strings.Split(shell, "/")
-		if len(parts) > 0 {
-			return parts[len(parts)-1]
-		}
-	}
-	return "cmd"
-}
-
-func queryRegString(hKey windows.Handle, name string) string {
-	namePtr, _ := windows.UTF16PtrFromString(name)
-	var buf [64]byte
-	var bufType uint32
-	size := uint32(len(buf))
-	err := windows.RegQueryValueEx(hKey, namePtr, nil, &bufType, &buf[0], &size)
+	cmd := exec.Command("powershell", "-NoProfile", "-Command",
+		`(Get-CimInstance Win32_ComputerSystem).Model`)
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
-	if bufType == windows.REG_DWORD {
-		val := uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24
-		return fmt.Sprintf("%d", val)
-	}
-	if size > 0 && size/2 < uint32(len(buf)) {
-		return windows.UTF16ToString((*[32]uint16)(unsafe.Pointer(&buf[0]))[:size/2])
-	}
-	return ""
+	return strings.TrimSpace(string(out))
 }
 
 func getDarwinHost() string {
@@ -177,17 +80,6 @@ func getDarwinKernel() string {
 		return ""
 	}
 	return strings.TrimSpace(string(output))
-}
-
-func getDarwinShell() string {
-	shell := os.Getenv("SHELL")
-	if shell != "" {
-		parts := strings.Split(shell, "/")
-		if len(parts) > 0 {
-			shell = parts[len(parts)-1]
-		}
-	}
-	return shell
 }
 
 func getLinuxHost() string {
@@ -211,15 +103,4 @@ func getLinuxKernel() string {
 		return ""
 	}
 	return strings.TrimSpace(string(output))
-}
-
-func getLinuxShell() string {
-	shell := os.Getenv("SHELL")
-	if shell != "" {
-		parts := strings.Split(shell, "/")
-		if len(parts) > 0 {
-			shell = parts[len(parts)-1]
-		}
-	}
-	return shell
 }

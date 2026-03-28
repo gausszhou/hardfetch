@@ -74,6 +74,7 @@ func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *detect.SystemInfo, er
 	}{
 		{"Hostname", info.Hostname},
 		{"OS", info.OS},
+		{"HOST", info.Host},
 		{"Kernel", info.Kernel},
 		{"Uptime", info.FormatUptime()},
 		{"WM", info.WM},
@@ -105,8 +106,6 @@ func displayNetworkInfoToBuffer(buffer *bytes.Buffer, info *detect.NetworkInfo, 
 		label string
 		value string
 	}{
-		{"Local IP", info.LocalIP},
-		{"Public IP", info.PublicIP},
 		{"Interfaces", info.FormatInterfaces()},
 	}
 
