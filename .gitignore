@@ -1,8 +1,8 @@
 # Binaries and build artifacts
 ./hardfetch
-./hardfetch.exe
 *.exe
 *.out
+*.pprof
 
 # Distribution directory
 dist/
