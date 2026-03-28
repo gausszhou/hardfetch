@@ -29,10 +29,10 @@ Hardfetch 旨在成为一个快速、可定制的系统信息工具，类似于 
 
 ### 基础构建
 ```bash
-# 构建二进制文件
+# 构建二进制文件（产物放在 dist 目录）
 make build
 # 或
-go build -o hardfetch cmd/hardfetch/main.go
+mkdir -p dist && go build -o dist/hardfetch cmd/hardfetch/main.go
 
 # 全局安装
 make install
@@ -46,15 +46,16 @@ make clean
 ### 开发构建
 ```bash
 # 使用 race 检测器构建
-go build -race -o hardfetch cmd/hardfetch/main.go
+mkdir -p dist && go build -race -o dist/hardfetch cmd/hardfetch/main.go
 
 # 为多个平台构建
 make build-all
 
 # 为特定操作系统/架构构建
-GOOS=linux GOARCH=amd64 go build -o hardfetch-linux-amd64 cmd/hardfetch/main.go
-GOOS=darwin GOARCH=arm64 go build -o hardfetch-darwin-arm64 cmd/hardfetch/main.go
-GOOS=windows GOARCH=amd64 go build -o hardfetch-windows-amd64.exe cmd/hardfetch/main.go
+mkdir -p dist
+GOOS=linux GOARCH=amd64 go build -o dist/hardfetch-linux-amd64 cmd/hardfetch/main.go
+GOOS=darwin GOARCH=arm64 go build -o dist/hardfetch-darwin-arm64 cmd/hardfetch/main.go
+GOOS=windows GOARCH=amd64 go build -o dist/hardfetch-windows-amd64.exe cmd/hardfetch/main.go
 ```
 
 ## 测试命令
@@ -254,10 +255,10 @@ go mod tidy
 ### 构建优化
 ```bash
 # 使用优化构建
-go build -ldflags="-s -w" -o hardfetch cmd/hardfetch/main.go
+mkdir -p dist && go build -ldflags="-s -w" -o dist/hardfetch cmd/hardfetch/main.go
 
 # 剥离调试信息以减小二进制文件
-go build -trimpath -o hardfetch cmd/hardfetch/main.go
+mkdir -p dist && go build -trimpath -o dist/hardfetch cmd/hardfetch/main.go
 ```
 
 ### 运行时性能
@@ -286,9 +287,10 @@ dlv debug cmd/hardfetch/main.go
 ### 跨平台编译
 ```bash
 # 为多个平台构建
-GOOS=darwin GOARCH=arm64 go build -o hardfetch-darwin-arm64 cmd/hardfetch/main.go
-GOOS=linux GOARCH=amd64 go build -o hardfetch-linux-amd64 cmd/hardfetch/main.go
-GOOS=windows GOARCH=amd64 go build -o hardfetch-windows-amd64.exe cmd/hardfetch/main.go
+mkdir -p dist
+GOOS=darwin GOARCH=arm64 go build -o dist/hardfetch-darwin-arm64 cmd/hardfetch/main.go
+GOOS=linux GOARCH=amd64 go build -o dist/hardfetch-linux-amd64 cmd/hardfetch/main.go
+GOOS=windows GOARCH=amd64 go build -o dist/hardfetch-windows-amd64.exe cmd/hardfetch/main.go
 ```
 
 ## 质量保证检查清单
