@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -17,6 +18,7 @@ type Info struct {
 	Threads      int
 	Frequency    string
 	Architecture string
+	Uptime       time.Duration
 }
 
 func Get() (*Info, error) {
@@ -72,7 +74,26 @@ func getCPUInfoWindows() (*Info, error) {
 
 	info.Frequency = getCPUFrequencyWindows()
 
+	info.Uptime = getUptimeWindows()
+
 	return info, nil
+}
+
+func getUptimeWindows() time.Duration {
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';(Get-Date)-(Get-CimInstance Win32_OperatingSystem).LastBootUpTime| Select-Object -ExpandProperty TotalSeconds`)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+	outputStr := strings.TrimSpace(string(output))
+	if outputStr == "" || outputStr == "null" {
+		return 0
+	}
+	uptimeSec, err := strconv.ParseFloat(outputStr, 64)
+	if err != nil {
+		return 0
+	}
+	return time.Duration(uptimeSec) * time.Second
 }
 
 func getCPUFrequencyWindows() string {

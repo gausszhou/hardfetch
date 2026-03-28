@@ -10,7 +10,6 @@ import (
 
 type Info struct {
 	Name          string
-	Vendor        string
 	VRAM          uint64
 	DriverVersion string
 }
@@ -24,38 +23,37 @@ func Get() ([]*Info, error) {
 	case "linux":
 		return getGPUInfoLinux()
 	default:
-		return []*Info{{Name: "Unknown", Vendor: "Unknown"}}, nil
+		return []*Info{{Name: "Unknown"}}, nil
 	}
 }
 
 func getGPUInfoWindows() ([]*Info, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_VideoController|Select-Object Name,AdapterCompatibility,AdapterRAM,DriverVersion|ConvertTo-Json -Compress -Depth 2`)
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_VideoController|Select-Object Name,AdapterRAM,DriverVersion|ConvertTo-Json -Compress -Depth 2`)
 	output, err := cmd.Output()
 	if err != nil {
-		return []*Info{{Name: "Unknown", Vendor: "Unknown"}}, nil
+		return []*Info{{Name: "Unknown"}}, nil
 	}
 
 	outputStr := strings.TrimSpace(string(output))
 	if outputStr == "" || outputStr == "null" {
-		return []*Info{{Name: "Unknown", Vendor: "Unknown"}}, nil
+		return []*Info{{Name: "Unknown"}}, nil
 	}
 
 	type gpuData struct {
-		Name                 string  `json:"Name"`
-		AdapterCompatibility string  `json:"AdapterCompatibility"`
-		AdapterRAM           float64 `json:"AdapterRAM"`
-		DriverVersion        string  `json:"DriverVersion"`
+		Name          string  `json:"Name"`
+		AdapterRAM    float64 `json:"AdapterRAM"`
+		DriverVersion string  `json:"DriverVersion"`
 	}
 
 	var gpus []gpuData
 	if strings.HasPrefix(outputStr, "[") {
 		if err := json.Unmarshal([]byte(outputStr), &gpus); err != nil {
-			return []*Info{{Name: "Unknown", Vendor: "Unknown"}}, nil
+			return []*Info{{Name: "Unknown"}}, nil
 		}
 	} else {
 		var gpu gpuData
 		if err := json.Unmarshal([]byte(outputStr), &gpu); err != nil {
-			return []*Info{{Name: "Unknown", Vendor: "Unknown"}}, nil
+			return []*Info{{Name: "Unknown"}}, nil
 		}
 		gpus = []gpuData{gpu}
 	}
@@ -64,12 +62,8 @@ func getGPUInfoWindows() ([]*Info, error) {
 	for _, g := range gpus {
 		info := &Info{
 			Name:          g.Name,
-			Vendor:        g.AdapterCompatibility,
 			VRAM:          uint64(g.AdapterRAM),
 			DriverVersion: g.DriverVersion,
-		}
-		if info.Vendor == "" {
-			info.Vendor = detectVendor(g.Name)
 		}
 		result = append(result, info)
 	}
@@ -81,18 +75,17 @@ func getGPUInfoDarwin() ([]*Info, error) {
 	cmd := exec.Command("system_profiler", "SPDisplaysDataType")
 	output, err := cmd.Output()
 	if err != nil {
-		return []*Info{{Name: "Unknown", Vendor: "Unknown"}}, nil
+		return []*Info{{Name: "Unknown"}}, nil
 	}
 
 	lines := strings.Split(string(output), "\n")
 	result := make([]*Info, 0)
-	currentGPU := &Info{Vendor: "Apple"}
+	currentGPU := &Info{}
 
 	for _, line := range lines {
 		if strings.Contains(line, "Chipset Model:") {
 			currentGPU = &Info{}
 			currentGPU.Name = strings.TrimSpace(strings.Split(line, ":")[1])
-			currentGPU.Vendor = "Apple"
 		} else if strings.Contains(line, "VRAM") && !strings.Contains(line, "Total") {
 			parts := strings.Split(line, ":")
 			if len(parts) > 1 {
@@ -101,7 +94,7 @@ func getGPUInfoDarwin() ([]*Info, error) {
 			}
 		} else if strings.TrimSpace(line) == "" && currentGPU.Name != "" {
 			result = append(result, currentGPU)
-			currentGPU = &Info{Vendor: "Apple"}
+			currentGPU = &Info{}
 		}
 	}
 	if currentGPU.Name != "" {
@@ -109,7 +102,7 @@ func getGPUInfoDarwin() ([]*Info, error) {
 	}
 
 	if len(result) == 0 {
-		result = append(result, &Info{Name: "Unknown", Vendor: "Unknown"})
+		result = append(result, &Info{Name: "Unknown"})
 	}
 	return result, nil
 }
@@ -118,7 +111,7 @@ func getGPUInfoLinux() ([]*Info, error) {
 	cmd := exec.Command("lspci", "-v")
 	output, err := cmd.Output()
 	if err != nil {
-		return []*Info{{Name: "Unknown", Vendor: "Unknown"}}, nil
+		return []*Info{{Name: "Unknown"}}, nil
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -129,8 +122,7 @@ func getGPUInfoLinux() ([]*Info, error) {
 			parts := strings.Split(line, ":")
 			if len(parts) > 1 {
 				info := &Info{
-					Name:   strings.TrimSpace(parts[1]),
-					Vendor: detectVendor(parts[1]),
+					Name: strings.TrimSpace(parts[1]),
 				}
 				result = append(result, info)
 			}
@@ -138,7 +130,7 @@ func getGPUInfoLinux() ([]*Info, error) {
 	}
 
 	if len(result) == 0 {
-		result = append(result, &Info{Name: "Unknown", Vendor: "Unknown"})
+		result = append(result, &Info{Name: "Unknown"})
 	}
 	return result, nil
 }
@@ -156,24 +148,4 @@ func parseVRAM(vram string) uint64 {
 		return uint64(val * 1024 * 1024)
 	}
 	return 0
-}
-
-func detectVendor(name string) string {
-	lower := strings.ToLower(name)
-	if strings.Contains(lower, "nvidia") {
-		return "NVIDIA"
-	}
-	if strings.Contains(lower, "amd") || strings.Contains(lower, "radeon") || strings.Contains(lower, "advanced micro devices") {
-		return "AMD"
-	}
-	if strings.Contains(lower, "intel") {
-		return "Intel"
-	}
-	if strings.Contains(lower, "microsoft") || strings.Contains(lower, "basic render") {
-		return "Microsoft"
-	}
-	if strings.Contains(lower, "apple") {
-		return "Apple"
-	}
-	return "Unknown"
 }

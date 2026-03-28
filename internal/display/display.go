@@ -180,13 +180,6 @@ func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, e
 			{"GPU", gpu.Name},
 		}
 
-		if gpu.Vendor != "" {
-			fields = append(fields, struct {
-				label string
-				value string
-			}{"Vendor", gpu.Vendor})
-		}
-
 		if gpu.VRAM > 0 {
 			fields = append(fields, struct {
 				label string

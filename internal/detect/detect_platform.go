@@ -9,7 +9,13 @@ import (
 )
 
 func detectSystem() (any, error) {
-	return &SystemInfo{}, nil
+	cpu, err := cpuinfo.Get()
+	if err != nil {
+		cpu = &cpuinfo.Info{}
+	}
+	return &SystemInfo{
+		Uptime: cpu.Uptime,
+	}, nil
 }
 
 func detectHardware() (any, error) {
@@ -92,7 +98,6 @@ func convertGPUs(gpus []*gpuinfo.Info) []*GPUInfo {
 	for _, g := range gpus {
 		result = append(result, &GPUInfo{
 			Name:          g.Name,
-			Vendor:        g.Vendor,
 			VRAM:          g.VRAM,
 			DriverVersion: g.DriverVersion,
 		})
