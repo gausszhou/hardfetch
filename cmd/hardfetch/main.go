@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
@@ -22,8 +21,6 @@ func main() {
 		}
 	}
 
-	flag.Parse()
-
 	result := detect.Detect(detect.GetCoreDetectors()...)
 	display.PrintResult(result)
 }
@@ -38,11 +35,6 @@ func printHelp() {
 	fmt.Printf("Usage: %s [options]\n", cli.Name)
 	fmt.Println()
 	fmt.Println("Options:")
-	flag.PrintDefaults()
-	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Println("  hardfetch                    # Show default system information")
-	fmt.Println("  hardfetch --modules system,cpu,memory  # Show specific modules")
-	fmt.Println("  hardfetch --all              # Show all available modules")
-	fmt.Println("  hardfetch --gen-config       # Generate default configuration file")
+	fmt.Println("  -h, --help     Show this help message")
+	fmt.Println("  -v, --version  Show version information")
 }
