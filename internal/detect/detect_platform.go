@@ -3,6 +3,7 @@ package detect
 import (
 	"github.com/gausszhou/hardfetch/internal/modules/battery"
 	"github.com/gausszhou/hardfetch/internal/modules/cpuinfo"
+	"github.com/gausszhou/hardfetch/internal/modules/disk"
 	"github.com/gausszhou/hardfetch/internal/modules/gpuinfo"
 	"github.com/gausszhou/hardfetch/internal/modules/memory"
 	"github.com/gausszhou/hardfetch/internal/modules/network"
@@ -40,6 +41,11 @@ func detectHardware() (any, error) {
 		bat = &battery.Info{}
 	}
 
+	disks, err := disk.Get()
+	if err != nil {
+		disks = []*disk.Info{}
+	}
+
 	return &HardwareInfo{
 		CPU: &CPUInfo{
 			Model:        cpu.Model,
@@ -66,7 +72,7 @@ func detectHardware() (any, error) {
 			Status:        bat.Status,
 			TimeRemaining: bat.TimeRemaining,
 		},
-		Disks: []*DiskInfo{},
+		Disks: convertDisks(disks),
 	}, nil
 }
 
@@ -100,6 +106,20 @@ func convertGPUs(gpus []*gpuinfo.Info) []*GPUInfo {
 			Name:          g.Name,
 			VRAM:          g.VRAM,
 			DriverVersion: g.DriverVersion,
+		})
+	}
+	return result
+}
+
+func convertDisks(disks []*disk.Info) []*DiskInfo {
+	result := make([]*DiskInfo, 0, len(disks))
+	for _, d := range disks {
+		result = append(result, &DiskInfo{
+			Drive:      d.Drive,
+			Total:      d.Total,
+			Used:       d.Used,
+			Free:       d.Free,
+			FileSystem: d.FileSystem,
 		})
 	}
 	return result
