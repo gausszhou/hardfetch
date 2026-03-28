@@ -306,19 +306,15 @@ func getGPUInfoFromAPI() ([]*GPUInfo, error) {
 func getGPUInfoFromWMI() []*GPUInfo {
 	var gpus []*GPUInfo
 
-	// Use PowerShell to query WMI for GPU information
-	// Get-CimInstance is more modern than Get-WmiObject
-	cmd := exec.Command("powershell", "-Command",
-		`Get-CimInstance Win32_VideoController | Select-Object Name, AdapterCompatibility, AdapterRAM, DriverVersion, @{Name="AdapterRAMGB";Expression={[math]::Round($_.AdapterRAM/1GB, 2)}} | ConvertTo-Json`)
+	cmd := exec.Command("powershell", "-NoProfile", "-Command",
+		`Get-CimInstance Win32_VideoController | Select-Object Name, AdapterCompatibility, AdapterRAM, DriverVersion, @{Name="AdapterRAMGB";Expression={[math]::Round($_.AdapterRAM/1GB, 2)}} | ConvertTo-Json -Compress`)
 
 	output, err := cmd.Output()
 	if err != nil {
-		// Try alternative command
-		cmd = exec.Command("powershell", "-Command",
-			`Get-WmiObject Win32_VideoController | Select-Object Name, AdapterCompatibility, AdapterRAM, DriverVersion | ConvertTo-Json`)
+		cmd = exec.Command("powershell", "-NoProfile", "-Command",
+			`Get-WmiObject Win32_VideoController | Select-Object Name, AdapterCompatibility, AdapterRAM, DriverVersion | ConvertTo-Json -Compress`)
 		output, err = cmd.Output()
 		if err != nil {
-			// WMI query failed, return empty list
 			return gpus
 		}
 	}
@@ -419,8 +415,26 @@ func detectVendorFromName(name string) string {
 func getDiskInfo() ([]*DiskInfo, error) {
 	disks := []*DiskInfo{}
 
-	// Get all logical drives on Windows
 	driveLetters := getLogicalDrives()
+
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", `
+		Get-WmiObject Win32_LogicalDisk | Where-Object {$_.DriveType -eq 3} | ForEach-Object {
+			@{Drive=$_.DeviceID; FS=$_.FileSystem} | ConvertTo-Json -Compress
+		}
+	`)
+	output, _ := cmd.Output()
+	fsMap := make(map[string]string)
+	outputStr := string(output)
+	for _, line := range strings.Split(outputStr, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, `"Drive"`) {
+			drive := extractJSONValue(line, "Drive")
+			fs := extractJSONValue(line, "FS")
+			if drive != "" && fs != "" {
+				fsMap[drive] = fs
+			}
+		}
+	}
 
 	for _, drive := range driveLetters {
 		var freeBytes, totalBytes, totalFreeBytes uint64
@@ -434,19 +448,129 @@ func getDiskInfo() ([]*DiskInfo, error) {
 		)
 
 		if ret != 0 && totalBytes > 0 {
+			fs := fsMap[drive]
+			if fs == "" {
+				fs = "NTFS"
+			}
 			disks = append(disks, &DiskInfo{
-				Drive: drive,
-				Total: totalBytes,
-				Free:  freeBytes,
-				Used:  totalBytes - freeBytes,
+				Drive:      drive,
+				Total:      totalBytes,
+				Free:       freeBytes,
+				Used:       totalBytes - freeBytes,
+				FileSystem: fs,
 			})
 		}
 	}
 
 	if len(disks) == 0 {
-		// Fallback to C: drive only
 		return getDiskInfoFallback()
 	}
 
 	return disks, nil
+}
+
+func getSwapInfoImpl() (*SwapInfo, error) {
+	var memInfo memoryStatusEx
+	memInfo.dwLength = uint32(unsafe.Sizeof(memInfo))
+
+	ret, _, err := procGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&memInfo)))
+	if ret == 0 {
+		return nil, fmt.Errorf("failed to get swap info: %v", err)
+	}
+
+	return &SwapInfo{
+		Total:     memInfo.ullTotalPageFile,
+		Free:      memInfo.ullAvailPageFile,
+		Used:      memInfo.ullTotalPageFile - memInfo.ullAvailPageFile,
+		Available: memInfo.ullAvailPageFile,
+	}, nil
+}
+
+func getBatteryInfoImpl() (*BatteryInfo, error) {
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", `
+		$battery = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue
+		if ($battery) {
+			@{
+				EstimatedChargeRemaining = $battery.EstimatedChargeRemaining
+				BatteryStatus = $battery.BatteryStatus
+			} | ConvertTo-Json -Compress
+		}
+	`)
+
+	output, err := cmd.Output()
+	if err != nil {
+		return &BatteryInfo{
+			Percentage: 100,
+			Status:     "AC Connected",
+		}, nil
+	}
+
+	outputStr := string(output)
+	if outputStr == "" || outputStr == "\n" {
+		return &BatteryInfo{
+			Percentage: 100,
+			Status:     "AC Connected",
+		}, nil
+	}
+
+	var battery struct {
+		EstimatedChargeRemaining int `json:"EstimatedChargeRemaining"`
+		BatteryStatus            int `json:"BatteryStatus"`
+	}
+
+	lines := strings.Split(outputStr, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "EstimatedChargeRemaining") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				pct := strings.TrimSpace(parts[1])
+				pct = strings.TrimSuffix(pct, ",")
+				fmt.Sscanf(pct, "%d", &battery.EstimatedChargeRemaining)
+			}
+		}
+		if strings.Contains(line, "BatteryStatus") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				status := strings.TrimSpace(parts[1])
+				fmt.Sscanf(status, "%d", &battery.BatteryStatus)
+			}
+		}
+	}
+
+	status := getBatteryStatusText(battery.BatteryStatus)
+
+	return &BatteryInfo{
+		Percentage: battery.EstimatedChargeRemaining,
+		Status:     status,
+	}, nil
+}
+
+func getBatteryStatusText(status int) string {
+	switch status {
+	case 1:
+		return "Discharging"
+	case 2:
+		return "AC Connected"
+	case 3:
+		return "Fully Charged"
+	case 4:
+		return "Low"
+	case 5:
+		return "Critical"
+	case 6:
+		return "Charging"
+	case 7:
+		return "Charging High"
+	case 8:
+		return "Charging Low"
+	case 9:
+		return "Charging Critical"
+	case 10:
+		return "Undefined"
+	case 11:
+		return "Partially Charged"
+	default:
+		return "Unknown"
+	}
 }

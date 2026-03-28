@@ -55,18 +55,36 @@ func getHostname() (string, error) {
 }
 
 func getLocalIP() (string, error) {
-	// Get first non-loopback IP address
+	// Get all non-loopback IP addresses and prefer non-link-local addresses
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return "", err
 	}
 
+	var linkLocalIP string
+	var otherIP string
+
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String(), nil
+				ipStr := ipnet.IP.String()
+				// Check if it's a link-local address (169.254.x.x)
+				if strings.HasPrefix(ipStr, "169.254.") {
+					linkLocalIP = ipStr
+				} else {
+					otherIP = ipStr
+					break
+				}
 			}
 		}
+	}
+
+	// Prefer non-link-local address, fall back to link-local
+	if otherIP != "" {
+		return otherIP, nil
+	}
+	if linkLocalIP != "" {
+		return linkLocalIP, nil
 	}
 
 	return "", fmt.Errorf("no non-loopback IP address found")

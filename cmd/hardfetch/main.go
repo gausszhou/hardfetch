@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -115,6 +116,23 @@ func runHardfetch(modulesStr string, showAll, noColors bool) {
 	info := &collectedInfo{}
 	var wg sync.WaitGroup
 
+	stopLoading := make(chan struct{})
+
+	go func() {
+		dots := []string{".  ", ".. ", "..."}
+		idx := 0
+		for {
+			select {
+			case <-stopLoading:
+				return
+			default:
+				fmt.Fprintf(os.Stderr, "\rCollecting%s", dots[idx%len(dots)])
+				idx++
+				time.Sleep(200 * time.Millisecond)
+			}
+		}
+	}()
+
 	wg.Add(3)
 	go func() {
 		defer wg.Done()
@@ -130,6 +148,8 @@ func runHardfetch(modulesStr string, showAll, noColors bool) {
 	}()
 
 	wg.Wait()
+	close(stopLoading)
+	fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 15)+"\r")
 
 	var buffer bytes.Buffer
 
@@ -147,6 +167,8 @@ func runHardfetch(modulesStr string, showAll, noColors bool) {
 			displayDiskInfoToBuffer(&buffer, info.hardwareInfo, info.hardwareErr, noColors)
 		case "network":
 			displayNetworkInfoToBuffer(&buffer, info.networkInfo, info.networkErr, noColors)
+		case "battery":
+			displayBatteryInfoToBuffer(&buffer, info.hardwareInfo, info.hardwareErr, noColors)
 		default:
 			fmt.Fprintf(&buffer, "Unknown module: %s\n", module)
 		}
@@ -157,12 +179,12 @@ func runHardfetch(modulesStr string, showAll, noColors bool) {
 
 func getModulesToDisplay(modulesStr string, showAll bool) []string {
 	if showAll {
-		return []string{"system", "cpu", "gpu", "memory", "disk", "network"}
+		return []string{"system", "cpu", "gpu", "memory", "disk", "network", "battery"}
 	}
 
 	if modulesStr == "" {
 		// Default modules
-		return []string{"system", "cpu", "memory", "disk"}
+		return []string{"system", "cpu", "gpu", "memory", "disk", "network", "battery"}
 	}
 
 	modules := strings.Split(modulesStr, ",")
@@ -197,15 +219,30 @@ func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *system.SystemInfo, er
 		value string
 	}{
 		{"Hostname", info.Hostname},
+		{"OS", info.OS},
+		{"Host", info.Host},
+		{"Kernel", info.Kernel},
 		{"Uptime", info.FormatUptime()},
-		{"OS", fmt.Sprintf("%s/%s", info.OS, info.Arch)},
+		{"Shell", info.Shell},
+		{"Display", info.Display},
+		{"WM", info.WM},
+		{"WM Theme", info.WMTheme},
+		{"Theme", info.Theme},
+		{"Icon", info.Icons},
+		{"Font", info.Font},
+		{"Cursor", info.Cursor},
+		{"Terminal", info.Terminal},
+		{"Locale", info.Locale},
 	}
 
 	for _, field := range fields {
+		if field.value == "" {
+			continue
+		}
 		if noColors {
-			fmt.Fprintf(buffer, "%-10s: %s\n", field.label, field.value)
+			fmt.Fprintf(buffer, "%-12s: %s\n", field.label, field.value)
 		} else {
-			fmt.Fprintf(buffer, "%s%-10s%s: %s\n", color, field.label, "\033[0m", field.value)
+			fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
 		}
 	}
 }
@@ -232,9 +269,9 @@ func displayNetworkInfoToBuffer(buffer *bytes.Buffer, info *network.NetworkInfo,
 
 	for _, field := range fields {
 		if noColors {
-			fmt.Fprintf(buffer, "%-10s: %s\n", field.label, field.value)
+			fmt.Fprintf(buffer, "%-12s: %s\n", field.label, field.value)
 		} else {
-			fmt.Fprintf(buffer, "%s%-10s%s: %s\n", color, field.label, "\033[0m", field.value)
+			fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
 		}
 	}
 }
@@ -256,15 +293,14 @@ func displayCPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo,
 		label string
 		value string
 	}{
-
-		{"CPU", fmt.Sprintf("%s %d/%d @ %s", cpu.Model, cpu.Cores, cpu.Threads, cpu.Frequency)},
+		{"CPU", fmt.Sprintf("%s (%d) @ %s", cpu.Model, cpu.Threads, cpu.Frequency)},
 	}
 
 	for _, field := range fields {
 		if noColors {
-			fmt.Fprintf(buffer, "%-10s: %s\n", field.label, field.value)
+			fmt.Fprintf(buffer, "%-12s: %s\n", field.label, field.value)
 		} else {
-			fmt.Fprintf(buffer, "%s%-10s%s: %s\n", color, field.label, "\033[0m", field.value)
+			fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
 		}
 	}
 }
@@ -294,9 +330,9 @@ func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo,
 
 		for _, field := range fields {
 			if noColors {
-				fmt.Fprintf(buffer, "%-10s: %s\n", field.label, field.value)
+				fmt.Fprintf(buffer, "%-12s: %s\n", field.label, field.value)
 			} else {
-				fmt.Fprintf(buffer, "%s%-10s%s: %s\n", color, field.label, "\033[0m", field.value)
+				fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
 			}
 		}
 	}
@@ -315,18 +351,34 @@ func displayMemoryInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareIn
 		color = display.GetColorCode("green")
 	}
 
+	memPercent := 0
+	if mem.Total > 0 {
+		memPercent = int(float64(mem.Used) / float64(mem.Total) * 100)
+	}
+
 	fields := []struct {
 		label string
 		value string
 	}{
-		{"Memory", fmt.Sprintf("(%s / %s)", mem.FormatUsed(), mem.FormatTotal())},
+		{"Memory", fmt.Sprintf("%s / %s (%d%%)", mem.FormatUsed(), mem.FormatTotal(), memPercent)},
+	}
+
+	if hwInfo.Swap != nil {
+		swapPercent := 0
+		if hwInfo.Swap.Total > 0 {
+			swapPercent = int(float64(hwInfo.Swap.Used) / float64(hwInfo.Swap.Total) * 100)
+		}
+		fields = append(fields, struct {
+			label string
+			value string
+		}{"Swap", fmt.Sprintf("%s / %s (%d%%)", hwInfo.Swap.FormatUsed(), hwInfo.Swap.FormatTotal(), swapPercent)})
 	}
 
 	for _, field := range fields {
 		if noColors {
-			fmt.Fprintf(buffer, "%-10s: %s\n", field.label, field.value)
+			fmt.Fprintf(buffer, "%-12s: %s\n", field.label, field.value)
 		} else {
-			fmt.Fprintf(buffer, "%s%-10s%s: %s\n", color, field.label, "\033[0m", field.value)
+			fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
 		}
 	}
 }
@@ -337,23 +389,51 @@ func displayDiskInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo
 		return
 	}
 
-	color := ""
-	if !noColors {
-		color = display.GetColorCode("magenta")
-	}
-
-	var diskInfo []string
 	for _, disk := range hwInfo.Disks {
-		if disk.Drive != "" {
-			diskInfo = append(diskInfo, fmt.Sprintf("%s: %s used, %s free", disk.Drive, disk.FormatUsed(), disk.FormatFree()))
+		percent := 0
+		if disk.Total > 0 {
+			percent = int(float64(disk.Used) / float64(disk.Total) * 100)
+		}
+		fs := disk.FileSystem
+		if fs == "" {
+			fs = "NTFS"
+		}
+		color := ""
+		if !noColors {
+			color = display.GetColorCode("magenta")
+		}
+		if noColors {
+			fmt.Fprintf(buffer, "%-12s: %s / %s (%d%%) - %s\n", fmt.Sprintf("Disk (%s)", disk.Drive), disk.FormatUsed(), disk.FormatTotal(), percent, fs)
 		} else {
-			diskInfo = append(diskInfo, fmt.Sprintf("%s used, %s free", disk.FormatUsed(), disk.FormatFree()))
+			fmt.Fprintf(buffer, "%s%-12s%s: %s / %s (%d%%) - %s\n", color, fmt.Sprintf("Disk (%s)", disk.Drive), "\033[0m", disk.FormatUsed(), disk.FormatTotal(), percent, fs)
 		}
 	}
+}
 
-	if noColors {
-		fmt.Fprintf(buffer, "%-10s: %s\n", "Disk", strings.Join(diskInfo, " | "))
-	} else {
-		fmt.Fprintf(buffer, "%s%-10s%s: %s\n", color, "Disk", "\033[0m", strings.Join(diskInfo, " | "))
+func displayBatteryInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo, err error, noColors bool) {
+	if err != nil || hwInfo.Battery == nil {
+		return
+	}
+
+	color := ""
+	if !noColors {
+		color = display.GetColorCode("green")
+	}
+
+	battery := hwInfo.Battery
+
+	fields := []struct {
+		label string
+		value string
+	}{
+		{"Battery", fmt.Sprintf("%s [%s]", battery.FormatPercentage(), battery.Status)},
+	}
+
+	for _, field := range fields {
+		if noColors {
+			fmt.Fprintf(buffer, "%-12s: %s\n", field.label, field.value)
+		} else {
+			fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
+		}
 	}
 }

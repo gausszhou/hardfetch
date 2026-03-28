@@ -2,6 +2,7 @@ package system
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -13,7 +14,18 @@ type SystemInfo struct {
 	Arch     string
 	Kernel   string
 	Hostname string
+	Host     string
 	Uptime   time.Duration
+	Shell    string
+	Display  string
+	WM       string
+	WMTheme  string
+	Theme    string
+	Icons    string
+	Font     string
+	Cursor   string
+	Terminal string
+	Locale   string
 }
 
 // GetSystemInfo collects system information
@@ -23,16 +35,31 @@ func GetSystemInfo() (*SystemInfo, error) {
 		Arch: runtime.GOARCH,
 	}
 
-	if hostname, err := getHostname(); err == nil {
-		info.Hostname = hostname
-	}
+	uptime, _ := getUptime()
+	info.Uptime = uptime
 
-	if kernel, err := getKernelVersion(); err == nil {
-		info.Kernel = kernel
-	}
+	shell, _ := getShell()
+	info.Shell = shell
 
-	if uptime, err := getUptime(); err == nil {
-		info.Uptime = uptime
+	sysInfo := getAllSystemInfo()
+	info.Hostname = sysInfo.Hostname
+	info.Host = sysInfo.Model
+	info.OS = sysInfo.OSVersion
+	info.Kernel = sysInfo.Kernel
+	info.Display = sysInfo.Display
+	info.WM = sysInfo.WM
+	info.WMTheme = sysInfo.WMTheme
+	info.Theme = sysInfo.Theme
+	info.Font = sysInfo.Font
+	info.Cursor = sysInfo.Cursor
+	info.Locale = sysInfo.Locale
+
+	info.Icons = "Recycle Bin"
+	termEnv := os.Getenv("TERM_PROGRAM")
+	if termEnv != "" {
+		info.Terminal = termEnv
+	} else {
+		info.Terminal = "Windows Terminal"
 	}
 
 	return info, nil

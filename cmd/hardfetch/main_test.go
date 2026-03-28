@@ -97,7 +97,7 @@ func TestMainDefault(t *testing.T) {
 
 	// Default output now shows system info, not just version
 	// So we need to update the test
-	if !strings.Contains(output, "System Information:") && !strings.Contains(output, "hardfetch version") {
+	if !strings.Contains(output, "Hostname") && !strings.Contains(output, "hardfetch version") {
 		t.Errorf("Default output doesn't contain expected content: %s", output)
 	}
 }

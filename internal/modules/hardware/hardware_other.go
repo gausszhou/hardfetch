@@ -69,3 +69,20 @@ func getGPUInfoImpl() ([]*GPUInfo, error) {
 		DriverVersion: "System Driver",
 	}}, nil
 }
+
+func getSwapInfoImpl() (*SwapInfo, error) {
+	return &SwapInfo{
+		Total:     8 * 1024 * 1024 * 1024, // 8 GB
+		Free:      6 * 1024 * 1024 * 1024, // 6 GB
+		Used:      2 * 1024 * 1024 * 1024, // 2 GB
+		Available: 6 * 1024 * 1024 * 1024, // 6 GB
+	}, nil
+}
+
+func getBatteryInfoImpl() (*BatteryInfo, error) {
+	return &BatteryInfo{
+		Percentage:    100,
+		Status:        "AC Connected",
+		TimeRemaining: 0,
+	}, nil
+}
