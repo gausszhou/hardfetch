@@ -22,11 +22,10 @@ func main() {
 		}
 	}
 
-	noColorsFlag := flag.Bool("no-colors", false, "Disable colors")
 	flag.Parse()
 
 	result := detect.Detect(detect.GetCoreDetectors()...)
-	display.PrintResult(result, "", true, *noColorsFlag)
+	display.PrintResult(result)
 }
 
 func printVersion() {

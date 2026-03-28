@@ -46,7 +46,6 @@ func GetSystemInfo() (*SystemInfo, error) {
 	info.Host = sysInfo.Model
 	info.OS = sysInfo.OSVersion
 	info.Kernel = sysInfo.Kernel
-	info.Display = sysInfo.Display
 	info.WM = sysInfo.WM
 	info.WMTheme = sysInfo.WMTheme
 	info.Theme = sysInfo.Theme

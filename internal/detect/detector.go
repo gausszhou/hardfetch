@@ -110,7 +110,6 @@ func convertToSystemInfo(ci *collector.SystemInfoResult) *system.SystemInfo {
 		Host:     ci.Model,
 		Kernel:   ci.Kernel,
 		Shell:    ci.Shell,
-		Display:  ci.Display,
 		WM:       ci.WM,
 		WMTheme:  ci.WMTheme,
 		Theme:    ci.Theme,
