@@ -3,10 +3,13 @@
 package detect
 
 import (
+	"context"
 	"encoding/json"
 	"os/exec"
 	"strings"
 	"sync"
+
+	"github.com/gausszhou/hardfetch/internal/logger"
 )
 
 type systemInfoResult struct {
@@ -94,19 +97,31 @@ func (c *windowsCollector) collectAll() {
 	wg.Add(4)
 	go func() {
 		defer wg.Done()
+		t := logger.StartTimer("collectSystemInfo")
+		logger.Debug(context.Background(), "executing powershell command", "command_type", "system_info")
 		c.SystemInfo = c.collectSystemInfo()
+		t.Stop()
 	}()
 	go func() {
 		defer wg.Done()
+		t := logger.StartTimer("collectHardware")
+		logger.Debug(context.Background(), "executing powershell command", "command_type", "hardware")
 		c.Hardware = c.collectHardware()
+		t.Stop()
 	}()
 	go func() {
 		defer wg.Done()
+		t := logger.StartTimer("collectBattery")
+		logger.Debug(context.Background(), "executing powershell command", "command_type", "battery")
 		c.Battery = c.collectBattery()
+		t.Stop()
 	}()
 	go func() {
 		defer wg.Done()
+		t := logger.StartTimer("collectNetwork")
+		logger.Debug(context.Background(), "executing powershell command", "command_type", "network")
 		c.Network = c.collectNetwork()
+		t.Stop()
 	}()
 
 	wg.Wait()
