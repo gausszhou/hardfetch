@@ -1,14 +1,12 @@
-package system
+package detect
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"strings"
 	"time"
 )
 
-// SystemInfo represents system information
 type SystemInfo struct {
 	OS       string
 	Arch     string
@@ -17,54 +15,15 @@ type SystemInfo struct {
 	Host     string
 	Uptime   time.Duration
 	Shell    string
-	Display  string
 	WM       string
 	WMTheme  string
 	Theme    string
-	Icons    string
 	Font     string
 	Cursor   string
 	Terminal string
 	Locale   string
 }
 
-// GetSystemInfo collects system information
-func GetSystemInfo() (*SystemInfo, error) {
-	info := &SystemInfo{
-		OS:   runtime.GOOS,
-		Arch: runtime.GOARCH,
-	}
-
-	uptime, _ := getUptime()
-	info.Uptime = uptime
-
-	shell, _ := getShell()
-	info.Shell = shell
-
-	sysInfo := getAllSystemInfo()
-	info.Hostname = sysInfo.Hostname
-	info.Host = sysInfo.Model
-	info.OS = sysInfo.OSVersion
-	info.Kernel = sysInfo.Kernel
-	info.WM = sysInfo.WM
-	info.WMTheme = sysInfo.WMTheme
-	info.Theme = sysInfo.Theme
-	info.Font = sysInfo.Font
-	info.Cursor = sysInfo.Cursor
-	info.Locale = sysInfo.Locale
-
-	info.Icons = "Recycle Bin"
-	termEnv := os.Getenv("TERM_PROGRAM")
-	if termEnv != "" {
-		info.Terminal = termEnv
-	} else {
-		info.Terminal = "Windows Terminal"
-	}
-
-	return info, nil
-}
-
-// FormatUptime formats uptime duration to human readable string
 func (s *SystemInfo) FormatUptime() string {
 	if s.Uptime == 0 {
 		return "Unknown"
@@ -93,4 +52,11 @@ func plural(n int) string {
 		return ""
 	}
 	return "s"
+}
+
+func GetSystemInfoDefaults() *SystemInfo {
+	return &SystemInfo{
+		OS:   runtime.GOOS,
+		Arch: runtime.GOARCH,
+	}
 }

@@ -3,10 +3,7 @@ package detect
 import (
 	"sync"
 
-	"github.com/gausszhou/hardfetch/internal/modules/collector"
-	"github.com/gausszhou/hardfetch/internal/modules/hardware"
-	"github.com/gausszhou/hardfetch/internal/modules/network"
-	"github.com/gausszhou/hardfetch/internal/modules/system"
+	"github.com/gausszhou/hardfetch/internal/detect/collector"
 )
 
 type Detector interface {
@@ -15,9 +12,9 @@ type Detector interface {
 }
 
 type Result struct {
-	System   *system.SystemInfo
-	Hardware *hardware.HardwareInfo
-	Network  *network.NetworkInfo
+	System   *SystemInfo
+	Hardware *HardwareInfo
+	Network  *NetworkInfo
 }
 
 type coreDetector struct {
@@ -67,15 +64,15 @@ func collectAll(detectors []Detector) {
 			}
 			switch detector.Name() {
 			case "system":
-				if sys, ok := data.(*system.SystemInfo); ok {
+				if sys, ok := data.(*SystemInfo); ok {
 					result.System = sys
 				}
 			case "hardware":
-				if hw, ok := data.(*hardware.HardwareInfo); ok {
+				if hw, ok := data.(*HardwareInfo); ok {
 					result.Hardware = hw
 				}
 			case "network":
-				if net, ok := data.(*network.NetworkInfo); ok {
+				if net, ok := data.(*NetworkInfo); ok {
 					result.Network = net
 				}
 			}
@@ -100,11 +97,11 @@ func detectNetwork() (any, error) {
 	return convertToNetworkInfo(c.Network), nil
 }
 
-func convertToSystemInfo(ci *collector.SystemInfoResult) *system.SystemInfo {
+func convertToSystemInfo(ci *collector.SystemInfoResult) *SystemInfo {
 	if ci == nil {
-		return &system.SystemInfo{}
+		return &SystemInfo{}
 	}
-	return &system.SystemInfo{
+	return &SystemInfo{
 		Hostname: ci.Hostname,
 		OS:       ci.OSVersion,
 		Host:     ci.Model,
@@ -120,18 +117,18 @@ func convertToSystemInfo(ci *collector.SystemInfoResult) *system.SystemInfo {
 	}
 }
 
-func convertToHardwareInfo(hw *collector.HardwareResult, bat *collector.BatteryResult) *hardware.HardwareInfo {
+func convertToHardwareInfo(hw *collector.HardwareResult, bat *collector.BatteryResult) *HardwareInfo {
 	if hw == nil {
-		return &hardware.HardwareInfo{}
+		return &HardwareInfo{}
 	}
-	info := &hardware.HardwareInfo{
-		Memory: &hardware.MemoryInfo{
+	info := &HardwareInfo{
+		Memory: &MemoryInfo{
 			Total: hw.Memory,
 			Used:  hw.MemoryUsed,
 		},
-		Swap:  &hardware.SwapInfo{},
-		Disks: make([]*hardware.DiskInfo, 0),
-		GPUs:  make([]*hardware.GPUInfo, 0),
+		Swap:  &SwapInfo{},
+		Disks: make([]*DiskInfo, 0),
+		GPUs:  make([]*GPUInfo, 0),
 	}
 
 	if hw.SwapTotal > 0 {
@@ -140,7 +137,7 @@ func convertToHardwareInfo(hw *collector.HardwareResult, bat *collector.BatteryR
 	}
 
 	for _, d := range hw.Disks {
-		info.Disks = append(info.Disks, &hardware.DiskInfo{
+		info.Disks = append(info.Disks, &DiskInfo{
 			Drive:      d.Drive,
 			Total:      d.Total,
 			Used:       d.Used,
@@ -150,7 +147,7 @@ func convertToHardwareInfo(hw *collector.HardwareResult, bat *collector.BatteryR
 	}
 
 	for _, g := range hw.GPUs {
-		info.GPUs = append(info.GPUs, &hardware.GPUInfo{
+		info.GPUs = append(info.GPUs, &GPUInfo{
 			Name:          g.Name,
 			Vendor:        g.Vendor,
 			VRAM:          g.VRAM,
@@ -159,7 +156,7 @@ func convertToHardwareInfo(hw *collector.HardwareResult, bat *collector.BatteryR
 	}
 
 	if bat != nil {
-		info.Battery = &hardware.BatteryInfo{
+		info.Battery = &BatteryInfo{
 			Percentage: bat.Percentage,
 			Status:     bat.Status,
 		}
@@ -168,15 +165,15 @@ func convertToHardwareInfo(hw *collector.HardwareResult, bat *collector.BatteryR
 	return info
 }
 
-func convertToNetworkInfo(ni *collector.NetworkResult) *network.NetworkInfo {
+func convertToNetworkInfo(ni *collector.NetworkResult) *NetworkInfo {
 	if ni == nil {
-		return &network.NetworkInfo{}
+		return &NetworkInfo{}
 	}
-	info := &network.NetworkInfo{
+	info := &NetworkInfo{
 		LocalIP: ni.LocalIP,
 	}
 	for _, iface := range ni.Interfaces {
-		info.Interfaces = append(info.Interfaces, network.NetworkInterface{
+		info.Interfaces = append(info.Interfaces, NetworkInterface{
 			Name:      iface.Name,
 			IPAddress: iface.IP,
 		})

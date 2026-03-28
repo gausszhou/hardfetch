@@ -1,10 +1,9 @@
-package hardware
+package detect
 
 import (
 	"fmt"
 )
 
-// CPUInfo represents CPU information
 type CPUInfo struct {
 	Model        string
 	Cores        int
@@ -13,7 +12,6 @@ type CPUInfo struct {
 	Architecture string
 }
 
-// MemoryInfo represents memory information
 type MemoryInfo struct {
 	Total     uint64
 	Used      uint64
@@ -21,24 +19,21 @@ type MemoryInfo struct {
 	Free      uint64
 }
 
-// DiskInfo represents disk information
 type DiskInfo struct {
-	Drive      string // Drive letter or mount point (e.g., "C:", "/")
+	Drive      string
 	Total      uint64
 	Used       uint64
 	Free       uint64
-	FileSystem string // File system type (e.g., "NTFS", "FAT32")
+	FileSystem string
 }
 
-// GPUInfo represents GPU information
 type GPUInfo struct {
 	Name          string
 	Vendor        string
-	VRAM          uint64 // Video memory in bytes
+	VRAM          uint64
 	DriverVersion string
 }
 
-// SwapInfo represents swap information
 type SwapInfo struct {
 	Total     uint64
 	Used      uint64
@@ -46,14 +41,12 @@ type SwapInfo struct {
 	Available uint64
 }
 
-// BatteryInfo represents battery information
 type BatteryInfo struct {
 	Percentage    int
 	Status        string
-	TimeRemaining int // minutes
+	TimeRemaining int
 }
 
-// HardwareInfo represents all hardware information
 type HardwareInfo struct {
 	CPU     *CPUInfo
 	Memory  *MemoryInfo
@@ -63,44 +56,6 @@ type HardwareInfo struct {
 	Battery *BatteryInfo
 }
 
-// GetHardwareInfo collects hardware information
-func GetHardwareInfo() (*HardwareInfo, error) {
-	info := &HardwareInfo{}
-
-	// Get CPU info
-	if cpuInfo, err := getCPUInfo(); err == nil {
-		info.CPU = cpuInfo
-	}
-
-	// Get memory info
-	if memInfo, err := getMemoryInfo(); err == nil {
-		info.Memory = memInfo
-	}
-
-	// Get swap info
-	if swapInfo, err := getSwapInfo(); err == nil {
-		info.Swap = swapInfo
-	}
-
-	// Get disk info
-	if disks, err := getDiskInfo(); err == nil {
-		info.Disks = disks
-	}
-
-	// Get GPU info
-	if gpus, err := getGPUInfo(); err == nil {
-		info.GPUs = gpus
-	}
-
-	// Get battery info
-	if batteryInfo, err := getBatteryInfo(); err == nil {
-		info.Battery = batteryInfo
-	}
-
-	return info, nil
-}
-
-// FormatMemory formats memory size in human readable format
 func (m *MemoryInfo) FormatTotal() string {
 	return formatBytes(m.Total)
 }
@@ -117,7 +72,6 @@ func (m *MemoryInfo) FormatFree() string {
 	return formatBytes(m.Free)
 }
 
-// FormatDisk formats disk size in human readable format
 func (d *DiskInfo) FormatTotal() string {
 	return formatBytes(d.Total)
 }
@@ -130,12 +84,10 @@ func (d *DiskInfo) FormatFree() string {
 	return formatBytes(d.Free)
 }
 
-// FormatVRAM formats GPU memory size in human readable format
 func (g *GPUInfo) FormatVRAM() string {
 	return formatBytes(g.VRAM)
 }
 
-// FormatSwap formats swap size in human readable format
 func (s *SwapInfo) FormatTotal() string {
 	return formatBytes(s.Total)
 }
@@ -148,28 +100,12 @@ func (s *SwapInfo) FormatFree() string {
 	return formatBytes(s.Free)
 }
 
-// FormatBattery formats battery percentage
 func (b *BatteryInfo) FormatPercentage() string {
 	return fmt.Sprintf("%d%%", b.Percentage)
 }
 
 func (b *BatteryInfo) FormatStatus() string {
 	return b.Status
-}
-
-// getGPUInfo collects GPU information (platform-specific implementation)
-func getGPUInfo() ([]*GPUInfo, error) {
-	return getGPUInfoImpl()
-}
-
-// getSwapInfo collects swap information (platform-specific implementation)
-func getSwapInfo() (*SwapInfo, error) {
-	return getSwapInfoImpl()
-}
-
-// getBatteryInfo collects battery information (platform-specific implementation)
-func getBatteryInfo() (*BatteryInfo, error) {
-	return getBatteryInfoImpl()
 }
 
 func formatBytes(bytes uint64) string {

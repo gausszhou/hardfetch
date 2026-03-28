@@ -9,9 +9,6 @@ import (
 	"strings"
 
 	"github.com/gausszhou/hardfetch/internal/detect"
-	"github.com/gausszhou/hardfetch/internal/modules/hardware"
-	"github.com/gausszhou/hardfetch/internal/modules/network"
-	"github.com/gausszhou/hardfetch/internal/modules/system"
 )
 
 const defaultModules = "system,cpu,gpu,memory,disk,network,battery"
@@ -104,7 +101,7 @@ func getModules(modulesStr string, showAll bool) []string {
 	return result
 }
 
-func getInfoLines(modules []string, sysInfo *system.SystemInfo, hwInfo *hardware.HardwareInfo, netInfo *network.NetworkInfo) []string {
+func getInfoLines(modules []string, sysInfo *detect.SystemInfo, hwInfo *detect.HardwareInfo, netInfo *detect.NetworkInfo) []string {
 	var lines []string
 	var buf bytes.Buffer
 
@@ -140,7 +137,7 @@ func getInfoLines(modules []string, sysInfo *system.SystemInfo, hwInfo *hardware
 	return result
 }
 
-func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *system.SystemInfo, err error) {
+func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *detect.SystemInfo, err error) {
 	if err != nil {
 		fmt.Fprintf(buffer, "Error getting system info: %v\n", err)
 		return
@@ -161,7 +158,6 @@ func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *system.SystemInfo, er
 		{"WM", info.WM},
 		{"WM Theme", info.WMTheme},
 		{"Theme", info.Theme},
-		{"Icon", info.Icons},
 		{"Font", info.Font},
 		{"Cursor", info.Cursor},
 		{"Terminal", info.Terminal},
@@ -176,7 +172,7 @@ func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *system.SystemInfo, er
 	}
 }
 
-func displayNetworkInfoToBuffer(buffer *bytes.Buffer, info *network.NetworkInfo, err error) {
+func displayNetworkInfoToBuffer(buffer *bytes.Buffer, info *detect.NetworkInfo, err error) {
 	if err != nil {
 		fmt.Fprintf(buffer, "Error getting network info: %v\n", err)
 		return
@@ -198,7 +194,7 @@ func displayNetworkInfoToBuffer(buffer *bytes.Buffer, info *network.NetworkInfo,
 	}
 }
 
-func displayCPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo, err error) {
+func displayCPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, err error) {
 	if err != nil || hwInfo.CPU == nil {
 		fmt.Fprintf(buffer, "Error getting CPU info: %v\n", err)
 		return
@@ -220,7 +216,7 @@ func displayCPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo,
 	}
 }
 
-func displayMemoryInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo, err error) {
+func displayMemoryInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, err error) {
 	if err != nil || hwInfo.Memory == nil {
 		fmt.Fprintf(buffer, "Error getting memory info: %v\n", err)
 		return
@@ -258,7 +254,7 @@ func displayMemoryInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareIn
 	}
 }
 
-func displayDiskInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo, err error) {
+func displayDiskInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, err error) {
 	if err != nil || hwInfo.Disks == nil || len(hwInfo.Disks) == 0 {
 		fmt.Fprintf(buffer, "Error getting disk info: %v\n", err)
 		return
@@ -278,7 +274,7 @@ func displayDiskInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo
 	}
 }
 
-func displayBatteryInfoToBuffer(buffer *bytes.Buffer, hwInfo *hardware.HardwareInfo, err error) {
+func displayBatteryInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, err error) {
 	if err != nil || hwInfo.Battery == nil {
 		return
 	}
