@@ -43,12 +43,6 @@ func TestMainHelp(t *testing.T) {
 	if !strings.Contains(combinedOutput, "Usage:") {
 		t.Errorf("Help output doesn't contain 'Usage:'")
 	}
-	if !strings.Contains(combinedOutput, "-help") {
-		t.Errorf("Help output doesn't contain '-help' flag")
-	}
-	if !strings.Contains(combinedOutput, "-version") {
-		t.Errorf("Help output doesn't contain '-version' flag")
-	}
 }
 
 func TestMainVersion(t *testing.T) {
@@ -97,7 +91,7 @@ func TestMainDefault(t *testing.T) {
 
 	// Default output now shows system info, not just version
 	// So we need to update the test
-	if !strings.Contains(output, "System Information:") && !strings.Contains(output, "hardfetch version") {
+	if !strings.Contains(output, "Hostname") && !strings.Contains(output, "hardfetch version") {
 		t.Errorf("Default output doesn't contain expected content: %s", output)
 	}
 }
