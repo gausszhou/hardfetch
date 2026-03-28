@@ -37,7 +37,7 @@ func main() {
 func printVersion() {
 	fmt.Printf("%s version %s\n", cli.Name, cli.Version)
 	fmt.Printf("Author: %s\n", cli.Author)
-	fmt.Printf("Website: %s\n", cli.Website)
+	fmt.Printf("Repo: %s\n", cli.Repo)
 }
 
 func printHelp() {

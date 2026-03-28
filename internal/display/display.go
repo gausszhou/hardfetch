@@ -8,9 +8,7 @@ import (
 	"github.com/gausszhou/hardfetch/internal/detect"
 )
 
-const defaultModules = "system,cpu,gpu,memory,disk,network,battery"
-
-var moduleList = []string{"system", "cpu", "memory", "disk", "network", "battery"}
+var moduleList = []string{"system", "cpu", "gpu", "memory", "disk", "network", "battery"}
 
 func PrintResult(result *detect.Result) {
 	modules := moduleList
@@ -24,30 +22,6 @@ func PrintResult(result *detect.Result) {
 	fmt.Print(buffer.String())
 }
 
-func getModules(modulesStr string, showAll bool) []string {
-	if showAll {
-		return moduleList
-	}
-
-	if modulesStr == "" {
-		return moduleList
-	}
-
-	modules := strings.Split(modulesStr, ",")
-	uniqueModules := make(map[string]bool)
-	result := []string{}
-
-	for _, module := range modules {
-		module = strings.TrimSpace(module)
-		if module != "" && !uniqueModules[module] {
-			uniqueModules[module] = true
-			result = append(result, module)
-		}
-	}
-
-	return result
-}
-
 func getInfoLines(modules []string, sysInfo *detect.SystemInfo, hwInfo *detect.HardwareInfo, netInfo *detect.NetworkInfo) []string {
 	var lines []string
 	var buf bytes.Buffer
@@ -59,6 +33,8 @@ func getInfoLines(modules []string, sysInfo *detect.SystemInfo, hwInfo *detect.H
 			displaySystemInfoToBuffer(&buf, sysInfo, nil)
 		case "cpu":
 			displayCPUInfoToBuffer(&buf, hwInfo, nil)
+		case "gpu":
+			displayGPUInfoToBuffer(&buf, hwInfo, nil)
 		case "memory":
 			displayMemoryInfoToBuffer(&buf, hwInfo, nil)
 		case "disk":
@@ -98,10 +74,9 @@ func displaySystemInfoToBuffer(buffer *bytes.Buffer, info *detect.SystemInfo, er
 	}{
 		{"Hostname", info.Hostname},
 		{"OS", info.OS},
-		{"Host", info.Host},
+		{"HOST", info.Host},
 		{"Kernel", info.Kernel},
 		{"Uptime", info.FormatUptime()},
-		{"Shell", info.Shell},
 		{"WM", info.WM},
 		{"WM Theme", info.WMTheme},
 		{"Theme", info.Theme},
@@ -131,8 +106,6 @@ func displayNetworkInfoToBuffer(buffer *bytes.Buffer, info *detect.NetworkInfo, 
 		label string
 		value string
 	}{
-		{"Local IP", info.LocalIP},
-		{"Public IP", info.PublicIP},
 		{"Interfaces", info.FormatInterfaces()},
 	}
 
@@ -160,6 +133,28 @@ func displayCPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, e
 
 	for _, field := range fields {
 		fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, field.label, "\033[0m", field.value)
+	}
+}
+
+func displayGPUInfoToBuffer(buffer *bytes.Buffer, hwInfo *detect.HardwareInfo, err error) {
+	if err != nil || hwInfo.GPUs == nil || len(hwInfo.GPUs) == 0 {
+		return
+	}
+
+	color := GetColorCode("red")
+
+	for _, gpu := range hwInfo.GPUs {
+		value := gpu.Name
+		if gpu.Frequency != "" {
+			value += " @ " + gpu.Frequency
+		}
+		if gpu.VRAMString != "" {
+			value += " (" + gpu.VRAMString + ")"
+		}
+		if gpu.Type != "" {
+			value += " [" + gpu.Type + "]"
+		}
+		fmt.Fprintf(buffer, "%s%-12s%s: %s\n", color, "GPU", "\033[0m", value)
 	}
 }
 

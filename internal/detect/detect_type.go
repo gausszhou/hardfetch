@@ -14,7 +14,6 @@ type SystemInfo struct {
 	Hostname string
 	Host     string
 	Uptime   time.Duration
-	Shell    string
 	WM       string
 	WMTheme  string
 	Theme    string
@@ -116,8 +115,10 @@ type DiskInfo struct {
 
 type GPUInfo struct {
 	Name          string
-	Vendor        string
 	VRAM          uint64
+	VRAMString    string
+	Frequency     string
+	Type          string
 	DriverVersion string
 }
 
