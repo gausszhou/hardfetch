@@ -1,13 +1,11 @@
 package battery
 
 import (
+	"encoding/json"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
-	"unsafe"
-
-	"golang.org/x/sys/windows"
 )
 
 type Info struct {
@@ -38,39 +36,49 @@ func getBatteryInfoWindows() (*Info, error) {
 		Status:     "AC Connected",
 	}
 
-	kernel32 := windows.MustLoadDLL("kernel32.dll")
-	proc := kernel32.MustFindProc("GetSystemPowerStatus")
-
-	type systemPowerStatus struct {
-		ACLineStatus        uint8
-		BatteryFlag         uint8
-		BatteryLifePercent  uint8
-		SystemStatusFlag    uint8
-		BatteryLifeTime     uint32
-		BatteryFullLifeTime uint32
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", `$ErrorActionPreference='SilentlyContinue';Get-CimInstance Win32_Battery|Select-Object EstimatedChargeRemaining,BatteryStatus|ConvertTo-Json -Compress`)
+	output, err := cmd.Output()
+	if err != nil {
+		return info, nil
 	}
 
-	var result systemPowerStatus
-	_, _, _ = proc.Call(uintptr(unsafe.Pointer(&result)))
+	outputStr := strings.TrimSpace(string(output))
+	if outputStr == "" || outputStr == "null" {
+		return info, nil
+	}
 
-	if result.BatteryFlag&128 == 0 {
-		info.Percentage = int(result.BatteryLifePercent)
-		if info.Percentage == 255 {
-			info.Percentage = 100
-		}
+	type batteryData struct {
+		EstimatedChargeRemaining int `json:"EstimatedChargeRemaining"`
+		BatteryStatus            int `json:"BatteryStatus"`
+	}
 
-		switch result.ACLineStatus {
-		case 0:
-			info.Status = "Discharging"
-		case 1:
-			info.Status = "AC Connected"
-		default:
-			info.Status = "Unknown"
-		}
+	var bat batteryData
+	if err := json.Unmarshal([]byte(outputStr), &bat); err != nil {
+		return info, nil
+	}
 
-		if result.BatteryLifeTime != 0xffffffff {
-			info.TimeRemaining = int(result.BatteryLifeTime / 60)
-		}
+	info.Percentage = bat.EstimatedChargeRemaining
+	switch bat.BatteryStatus {
+	case 1:
+		info.Status = "Discharging"
+	case 2:
+		info.Status = "AC Connected"
+	case 3:
+		info.Status = "Fully Charged"
+	case 4:
+		info.Status = "Low"
+	case 5:
+		info.Status = "Critical"
+	case 6:
+		info.Status = "Charging"
+	case 7:
+		info.Status = "Charging High"
+	case 8:
+		info.Status = "Charging Low"
+	case 9:
+		info.Status = "Charging Critical"
+	default:
+		info.Status = "Unknown"
 	}
 
 	return info, nil
@@ -90,9 +98,6 @@ func getBatteryInfoDarwin() (*Info, error) {
 
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
-		if strings.Contains(line, "Battery") || strings.Contains(line, "AC") {
-			continue
-		}
 		if strings.Contains(line, "%") {
 			parts := strings.Fields(line)
 			for i, p := range parts {

@@ -8,8 +8,6 @@ import (
 	"github.com/gausszhou/hardfetch/internal/detect"
 )
 
-const defaultModules = "system,cpu,gpu,memory,disk,network,battery"
-
 var moduleList = []string{"system", "cpu", "gpu", "memory", "disk", "network", "battery"}
 
 func PrintResult(result *detect.Result) {
@@ -22,30 +20,6 @@ func PrintResult(result *detect.Result) {
 	}
 
 	fmt.Print(buffer.String())
-}
-
-func getModules(modulesStr string, showAll bool) []string {
-	if showAll {
-		return moduleList
-	}
-
-	if modulesStr == "" {
-		return moduleList
-	}
-
-	modules := strings.Split(modulesStr, ",")
-	uniqueModules := make(map[string]bool)
-	result := []string{}
-
-	for _, module := range modules {
-		module = strings.TrimSpace(module)
-		if module != "" && !uniqueModules[module] {
-			uniqueModules[module] = true
-			result = append(result, module)
-		}
-	}
-
-	return result
 }
 
 func getInfoLines(modules []string, sysInfo *detect.SystemInfo, hwInfo *detect.HardwareInfo, netInfo *detect.NetworkInfo) []string {
