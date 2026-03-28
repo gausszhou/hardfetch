@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"hardfetch/internal/cli"
-	"hardfetch/internal/display"
-	"hardfetch/internal/modules/hardware"
-	"hardfetch/internal/modules/network"
-	"hardfetch/internal/modules/system"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
-	"sync"
-	"time"
+
+	"github.com/gausszhou/hardfetch/internal/cli"
+	"github.com/gausszhou/hardfetch/internal/display"
+	"github.com/gausszhou/hardfetch/internal/modules/collector"
+	"github.com/gausszhou/hardfetch/internal/modules/hardware"
+	"github.com/gausszhou/hardfetch/internal/modules/network"
+	"github.com/gausszhou/hardfetch/internal/modules/system"
 )
 
 func main() {
@@ -113,68 +115,174 @@ type collectedInfo struct {
 func runHardfetch(modulesStr string, showAll, noColors bool) {
 	modules := getModulesToDisplay(modulesStr, showAll)
 
-	info := &collectedInfo{}
-	var wg sync.WaitGroup
+	var logoLines []string
+	if runtime.GOOS == "windows" {
+		logoLines = loadLogo("windows")
+	}
 
-	stopLoading := make(chan struct{})
+	c := collector.GetCollector()
 
-	go func() {
-		dots := []string{".  ", ".. ", "..."}
-		idx := 0
-		for {
-			select {
-			case <-stopLoading:
-				return
-			default:
-				fmt.Fprintf(os.Stderr, "\rCollecting%s", dots[idx%len(dots)])
-				idx++
-				time.Sleep(200 * time.Millisecond)
-			}
-		}
-	}()
-
-	wg.Add(3)
-	go func() {
-		defer wg.Done()
-		info.systemInfo, info.systemErr = system.GetSystemInfo()
-	}()
-	go func() {
-		defer wg.Done()
-		info.networkInfo, info.networkErr = network.GetNetworkInfo()
-	}()
-	go func() {
-		defer wg.Done()
-		info.hardwareInfo, info.hardwareErr = hardware.GetHardwareInfo()
-	}()
-
-	wg.Wait()
-	close(stopLoading)
-	fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 15)+"\r")
+	sysInfo := convertToSystemInfo(c.SystemInfo)
+	hwInfo := convertToHardwareInfo(c.Hardware, c.Battery)
+	netInfo := convertToNetworkInfo(c.Network)
 
 	var buffer bytes.Buffer
 
-	for _, module := range modules {
-		switch module {
-		case "system":
-			displaySystemInfoToBuffer(&buffer, info.systemInfo, info.systemErr, noColors)
-		case "cpu":
-			displayCPUInfoToBuffer(&buffer, info.hardwareInfo, info.hardwareErr, noColors)
-		case "gpu":
-			displayGPUInfoToBuffer(&buffer, info.hardwareInfo, info.hardwareErr, noColors)
-		case "memory":
-			displayMemoryInfoToBuffer(&buffer, info.hardwareInfo, info.hardwareErr, noColors)
-		case "disk":
-			displayDiskInfoToBuffer(&buffer, info.hardwareInfo, info.hardwareErr, noColors)
-		case "network":
-			displayNetworkInfoToBuffer(&buffer, info.networkInfo, info.networkErr, noColors)
-		case "battery":
-			displayBatteryInfoToBuffer(&buffer, info.hardwareInfo, info.hardwareErr, noColors)
-		default:
-			fmt.Fprintf(&buffer, "Unknown module: %s\n", module)
+	if len(logoLines) > 0 {
+		maxLogoHeight := len(logoLines)
+		infoLines := getInfoLines(modules, sysInfo, hwInfo, netInfo, noColors)
+
+		for i := 0; i < maxLogoHeight || i < len(infoLines); i++ {
+			if i < len(logoLines) {
+				buffer.WriteString(logoLines[i])
+			} else {
+				buffer.WriteString(strings.Repeat(" ", 22))
+			}
+
+			if i < len(infoLines) {
+				buffer.WriteString("  ")
+				buffer.WriteString(infoLines[i])
+			}
+			buffer.WriteString("\n")
+		}
+	} else {
+		for _, line := range getInfoLines(modules, sysInfo, hwInfo, netInfo, noColors) {
+			buffer.WriteString(line)
+			buffer.WriteString("\n")
 		}
 	}
 
 	fmt.Print(buffer.String())
+}
+
+func loadLogo(name string) []string {
+	logoPath := filepath.Join("logos", name+".txt")
+	data, err := os.ReadFile(logoPath)
+	if err != nil {
+		return nil
+	}
+	return strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+}
+
+func getInfoLines(modules []string, sysInfo *system.SystemInfo, hwInfo *hardware.HardwareInfo, netInfo *network.NetworkInfo, noColors bool) []string {
+	var lines []string
+	var buf bytes.Buffer
+
+	for _, module := range modules {
+		buf.Reset()
+		switch module {
+		case "system":
+			displaySystemInfoToBuffer(&buf, sysInfo, nil, noColors)
+		case "cpu":
+			displayCPUInfoToBuffer(&buf, hwInfo, nil, noColors)
+		case "gpu":
+			displayGPUInfoToBuffer(&buf, hwInfo, nil, noColors)
+		case "memory":
+			displayMemoryInfoToBuffer(&buf, hwInfo, nil, noColors)
+		case "disk":
+			displayDiskInfoToBuffer(&buf, hwInfo, nil, noColors)
+		case "network":
+			displayNetworkInfoToBuffer(&buf, netInfo, nil, noColors)
+		case "battery":
+			displayBatteryInfoToBuffer(&buf, hwInfo, nil, noColors)
+		}
+		if buf.Len() > 0 {
+			lines = append(lines, strings.TrimSpace(buf.String()))
+		}
+	}
+
+	var result []string
+	for _, block := range lines {
+		for _, line := range strings.Split(block, "\n") {
+			if line != "" {
+				result = append(result, line)
+			}
+		}
+	}
+	return result
+}
+
+func convertToSystemInfo(ci *collector.SystemInfoResult) *system.SystemInfo {
+	if ci == nil {
+		return &system.SystemInfo{}
+	}
+	return &system.SystemInfo{
+		Hostname: ci.Hostname,
+		OS:       ci.OSVersion,
+		Host:     ci.Model,
+		Kernel:   ci.Kernel,
+		Shell:    ci.Shell,
+		Display:  ci.Display,
+		WM:       ci.WM,
+		WMTheme:  ci.WMTheme,
+		Theme:    ci.Theme,
+		Font:     ci.Font,
+		Cursor:   ci.Cursor,
+		Terminal: ci.Terminal,
+		Locale:   ci.Locale,
+	}
+}
+
+func convertToHardwareInfo(hw *collector.HardwareResult, bat *collector.BatteryResult) *hardware.HardwareInfo {
+	if hw == nil {
+		return &hardware.HardwareInfo{}
+	}
+	info := &hardware.HardwareInfo{
+		Memory: &hardware.MemoryInfo{
+			Total: hw.Memory,
+			Used:  hw.MemoryUsed,
+		},
+		Swap: &hardware.SwapInfo{
+			Total: hw.SwapTotal,
+			Used:  hw.SwapUsed,
+		},
+		Disks: make([]*hardware.DiskInfo, 0),
+		GPUs:  make([]*hardware.GPUInfo, 0),
+	}
+
+	for _, d := range hw.Disks {
+		info.Disks = append(info.Disks, &hardware.DiskInfo{
+			Drive:      d.Drive,
+			Total:      d.Total,
+			Used:       d.Used,
+			Free:       d.Free,
+			FileSystem: d.FileSystem,
+		})
+	}
+
+	for _, g := range hw.GPUs {
+		info.GPUs = append(info.GPUs, &hardware.GPUInfo{
+			Name:          g.Name,
+			Vendor:        g.Vendor,
+			VRAM:          g.VRAM,
+			DriverVersion: g.DriverVersion,
+		})
+	}
+
+	if bat != nil {
+		info.Battery = &hardware.BatteryInfo{
+			Percentage: bat.Percentage,
+			Status:     bat.Status,
+		}
+	}
+
+	return info
+}
+
+func convertToNetworkInfo(ni *collector.NetworkResult) *network.NetworkInfo {
+	if ni == nil {
+		return &network.NetworkInfo{}
+	}
+	info := &network.NetworkInfo{
+		LocalIP: ni.LocalIP,
+	}
+	for _, iface := range ni.Interfaces {
+		info.Interfaces = append(info.Interfaces, network.NetworkInterface{
+			Name:      iface.Name,
+			IPAddress: iface.IP,
+		})
+	}
+	return info
 }
 
 func getModulesToDisplay(modulesStr string, showAll bool) []string {
