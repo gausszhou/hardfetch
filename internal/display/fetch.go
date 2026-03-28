@@ -3,9 +3,6 @@ package display
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/gausszhou/hardfetch/internal/detect"
@@ -18,63 +15,13 @@ var moduleList = []string{"system", "cpu", "memory", "disk", "network", "battery
 func PrintResult(result *detect.Result) {
 	modules := moduleList
 
-	var logoLines []string
-	var logoWidth int
-	if runtime.GOOS == "windows" {
-		logoLines = loadLogo("windows")
-		logoWidth = getLogoMaxWidth(logoLines)
-	}
-
 	var buffer bytes.Buffer
-
-	if len(logoLines) > 0 {
-		maxLogoHeight := len(logoLines)
-		infoLines := getInfoLines(modules, result.System, result.Hardware, result.Network)
-
-		for i := 0; i < maxLogoHeight || i < len(infoLines); i++ {
-			if i < len(logoLines) {
-				lineLen := len(logoLines[i])
-				buffer.WriteString(logoLines[i])
-				if lineLen < logoWidth {
-					buffer.WriteString(strings.Repeat(" ", logoWidth-lineLen))
-				}
-			} else {
-				buffer.WriteString(strings.Repeat(" ", logoWidth))
-			}
-
-			if i < len(infoLines) {
-				buffer.WriteString("  ")
-				buffer.WriteString(infoLines[i])
-			}
-			buffer.WriteString("\n")
-		}
-	} else {
-		for _, line := range getInfoLines(modules, result.System, result.Hardware, result.Network) {
-			buffer.WriteString(line)
-			buffer.WriteString("\n")
-		}
+	for _, line := range getInfoLines(modules, result.System, result.Hardware, result.Network) {
+		buffer.WriteString(line)
+		buffer.WriteString("\n")
 	}
 
 	fmt.Print(buffer.String())
-}
-
-func getLogoMaxWidth(lines []string) int {
-	maxWidth := 0
-	for _, line := range lines {
-		if len(line) > maxWidth {
-			maxWidth = len(line)
-		}
-	}
-	return maxWidth
-}
-
-func loadLogo(name string) []string {
-	logoPath := filepath.Join("logos", name+".txt")
-	data, err := os.ReadFile(logoPath)
-	if err != nil {
-		return nil
-	}
-	return strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 }
 
 func getModules(modulesStr string, showAll bool) []string {

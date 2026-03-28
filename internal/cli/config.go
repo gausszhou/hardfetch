@@ -10,7 +10,6 @@ import (
 // GenerateDefaultConfig generates and saves default configuration
 func GenerateDefaultConfig(path string) error {
 	config := map[string]interface{}{
-		"show_logo":     true,
 		"show_colors":   true,
 		"color_theme":   "auto",
 		"padding":       2,
