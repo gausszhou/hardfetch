@@ -5,9 +5,9 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/gausszhou/hardfetch/internal/cli"
 	"github.com/gausszhou/hardfetch/internal/detect"
 	"github.com/gausszhou/hardfetch/internal/display"
+	"github.com/gausszhou/hardfetch/internal/info"
 	"github.com/gausszhou/hardfetch/internal/logger"
 )
 
@@ -68,13 +68,13 @@ func main() {
 }
 
 func printVersion() {
-	fmt.Printf("%s version %s\n", cli.Name, cli.Version)
-	fmt.Printf("Author: %s\n", cli.Author)
-	fmt.Printf("Repo: %s\n", cli.Repo)
+	fmt.Printf("%s version %s\n", info.Name, info.Version)
+	fmt.Printf("Author: %s\n", info.Author)
+	fmt.Printf("Repo: %s\n", info.Repo)
 }
 
 func printHelp() {
-	fmt.Printf("Usage: %s [options]\n", cli.Name)
+	fmt.Printf("Usage: %s [options]\n", info.Name)
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  -h, --help     Show this help message")
