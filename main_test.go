@@ -31,8 +31,8 @@ func TestMainHelp(t *testing.T) {
 
 	os.Stdout = oldStdout
 	os.Stderr = oldStderr
-	stdoutBuf.ReadFrom(stdoutR)
-	stderrBuf.ReadFrom(stderrR)
+	_, _ = stdoutBuf.ReadFrom(stdoutR)
+	_, _ = stderrBuf.ReadFrom(stderrR)
 
 	stdoutOutput := stdoutBuf.String()
 	stderrOutput := stderrBuf.String()
@@ -61,10 +61,10 @@ func TestMainVersion(t *testing.T) {
 	w.Close()
 
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
-	expected := "hardfetch version 0.1.0\nAuthor: Hardfetch Team\nRepo: https://github.com/gausszhou/hardfetch\n"
+	expected := "hardfetch version 0.1.0\nAuthor: gausszhou\nRepo: https://github.com/gausszhou/hardfetch\n"
 	if output != expected {
 		t.Errorf("Version output doesn't match expected:\nGot: %q\nWant: %q", output, expected)
 	}
@@ -86,7 +86,7 @@ func TestMainDefault(t *testing.T) {
 	w.Close()
 
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	// Default output now shows system info, not just version
