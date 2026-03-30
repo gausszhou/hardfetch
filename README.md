@@ -1,21 +1,21 @@
 # hardfetch
 
-类似 fastfetch/neofetch 的 Go CLI 系统信息工具。
+A Go CLI tool for fetching system information, similar to fastfetch/neofetch.
 
-## 特性
+## Features
 
-- 系统信息、硬件信息、网络信息、电池状态
-- 跨平台支持 (Windows/Linux/macOS)
-- 高性能并发采集
-- 可配置显示
+- System, hardware, network, and battery information
+- Cross-platform support (Windows/Linux/macOS)
+- High-performance concurrent data collection
+- Configurable display
 
-## 安装
+## Installation
 
 ```bash
 go install github.com/gausszhou/hardfetch@latest
 ```
 
-或从源码：
+Or build from source:
 
 ```bash
 git clone https://github.com/gausszhou/hardfetch.git
@@ -23,19 +23,19 @@ cd hardfetch
 make install
 ```
 
-## 使用
+## Usage
 
 ```bash
-hardfetch           # 默认显示
-hardfetch -d        # 调试模式（性能分析）
-hardfetch -v        # 版本
-hardfetch -h        # 帮助
+hardfetch           # Default display
+hardfetch -d        # Debug mode
+hardfetch -v        # Version
+hardfetch -h        # Help
 ```
 
-## 构建
+## Build
 
 ```bash
-make build   # 构建
-make test    # 测试
-make install # 安装
+make build   # Build
+make test    # Test
+make install # Install
 ```
