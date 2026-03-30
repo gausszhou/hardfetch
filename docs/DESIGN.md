@@ -26,6 +26,7 @@ hardfetch/
 │   │   └── sys/          # 系统信息 (OS, 内核, 主机名)
 │   ├── display/         # 输出格式化
 │   ├── logger/          # 日志工具
+│   ├── info/            # 版本信息
 │   └── cli/             # CLI 常量
 ```
 
@@ -34,8 +35,9 @@ hardfetch/
 1. **入口点** (`main.go`)
    - 解析 CLI 标志 (`-d`, `-p`, `-v`, `-h`)
    - 初始化日志器
-   - 调用 `detect.Detect()` 采集所有信息
+   - 调用 `detect.Detect(detect.GetCoreDetectors()...)` 采集所有信息
    - 将结果传递给 `display.PrintResult()`
+   - 支持 `--pprof` 生成性能分析文件
 
 2. **检测层** (`internal/detect/`)
    - `Detector` 接口，包含 `Name()` 和 `Detect()` 方法
@@ -53,6 +55,10 @@ hardfetch/
    - 使用 ANSI 颜色代码格式化数据
    - 渲染：系统、CPU、GPU、内存、磁盘、网络、电池
    - 使用 bytes.Buffer 高效构建字符串
+
+5. **信息模块** (`internal/info/`)
+   - 存储应用元数据：版本号、作者、仓库地址
+   - 集中管理版本信息，便于更新
 
 ## 关键设计模式
 
@@ -137,7 +143,7 @@ defer t.Stop()
 
 - `github.com/shirou/gopsutil/v4` - 跨平台系统信息
 - `golang.org/x/sys` - 底层系统调用
-- 标准库: `sync`, `context`, `runtime`, `bytes`, `fmt`, `strings`
+- 标准库: `sync`, `context`, `runtime`, `bytes`, `fmt`, `strings`, `runtime/pprof`
 
 ## 构建目标
 
