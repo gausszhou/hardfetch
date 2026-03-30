@@ -30,6 +30,7 @@ func main() {
 		default:
 			args = append(args, arg)
 		}
+		_ = args
 	}
 
 	logger.Init(debugMode)
@@ -41,8 +42,11 @@ func main() {
 			fmt.Printf("failed to create CPU profile: %v\n", err)
 		} else {
 			cpuProfile = f
-			pprof.StartCPUProfile(cpuProfile)
-			fmt.Printf("[pprof] CPU profiling started\n")
+			if err := pprof.StartCPUProfile(cpuProfile); err != nil {
+				fmt.Printf("failed to start CPU profile: %v\n", err)
+			} else {
+				fmt.Printf("[pprof] CPU profiling started\n")
+			}
 		}
 	}
 
@@ -60,7 +64,9 @@ func main() {
 		if err != nil {
 			fmt.Printf("failed to create memory profile: %v\n", err)
 		} else {
-			pprof.WriteHeapProfile(memProfileFile)
+			if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
+				fmt.Printf("failed to write heap profile: %v\n", err)
+			}
 			memProfileFile.Close()
 			fmt.Printf("[pprof] Memory profile saved to hardfetch_mem.pprof\n")
 		}
