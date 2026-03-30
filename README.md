@@ -32,10 +32,6 @@ hardfetch -v        # Version
 hardfetch -h        # Help
 ```
 
-## Build
+## License
 
-```bash
-make build   # Build
-make test    # Test
-make install # Install
-```
+MIT License
