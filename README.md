@@ -1,4 +1,4 @@
-# hardfetch
+# HardFetch
 
 A command-line tool for fetching system information, similar to fastfetch/neofetch.
 
