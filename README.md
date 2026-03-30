@@ -12,7 +12,7 @@
 ## 安装
 
 ```bash
-go install github.com/gausszhou/hardfetch/cmd/hardfetch@latest
+go install github.com/gausszhou/hardfetch@latest
 ```
 
 或从源码：
