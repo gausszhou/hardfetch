@@ -12,12 +12,10 @@ A Go CLI tool for fetching system information, similar to fastfetch/neofetch.
 ## Installation
 
 ```bash
+# Install latest version
 go install github.com/gausszhou/hardfetch@latest
-```
 
-Or build from source:
-
-```bash
+# Or build from source
 git clone https://github.com/gausszhou/hardfetch.git
 cd hardfetch
 make install

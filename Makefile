@@ -14,7 +14,9 @@ clean:
 	rm -f coverage.out
 
 install:
+	@echo "Installing $(BINARY_NAME)..."
 	go install .
+	@echo "$(BINARY_NAME) installed successfully to $$(go env GOPATH)/bin"
 
 build-all: build-linux build-darwin build-windows
 
