@@ -1,13 +1,12 @@
 # hardfetch
 
-A Go CLI tool for fetching system information, similar to fastfetch/neofetch.
+A command-line tool for fetching system information, similar to fastfetch/neofetch.
 
 ## Features
 
 - System, hardware, network, and battery information
 - Cross-platform support (Windows/Linux/macOS)
 - High-performance concurrent data collection
-- Configurable display
 
 ## Installation
 
@@ -24,10 +23,11 @@ make install
 ## Usage
 
 ```bash
-hardfetch           # Default display
-hardfetch -d        # Debug mode
-hardfetch -v        # Version
-hardfetch -h        # Help
+# Run the tool
+hardfetch
+
+# Check version
+hardfetch --version
 ```
 
 ## License
