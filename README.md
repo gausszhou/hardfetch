@@ -30,6 +30,19 @@ hardfetch
 hardfetch --version
 ```
 
+## Clean
+
+```bash
+# Clean build artifacts
+make clean
+
+# Clean Go module cache (all cached versions)
+go clean -cache
+
+# Remove installed binary
+rm -f $(go env GOPATH)/bin/hardfetch
+```
+
 ## License
 
 MIT License
