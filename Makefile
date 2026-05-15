@@ -4,7 +4,7 @@ BINARY_NAME=hardfetch
 DIST_DIR=dist
 
 build:
-	go build -o $(DIST_DIR)/$(BINARY_NAME) main.go
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(DIST_DIR)/$(BINARY_NAME) main.go
 
 test:
 	go test ./...
@@ -15,25 +15,25 @@ clean:
 
 install:
 	@echo "Installing $(BINARY_NAME)..."
-	go install .
+	CGO_ENABLED=0 go install -ldflags="-s -w" .
 	@echo "$(BINARY_NAME) installed successfully to $$(go env GOPATH)/bin"
 
 build-all: build-linux build-darwin build-windows
 
 build-linux:
 	mkdir -p $(DIST_DIR)
-	GOOS=linux GOARCH=amd64 go build -o $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 main.go
-	GOOS=linux GOARCH=arm64 go build -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 main.go
 
 build-darwin:
 	mkdir -p $(DIST_DIR)
-	GOOS=darwin GOARCH=amd64 go build -o $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64 main.go
-	GOOS=darwin GOARCH=arm64 go build -o $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64 main.go
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64 main.go
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64 main.go
 
 build-windows:
 	mkdir -p $(DIST_DIR)
-	GOOS=windows GOARCH=amd64 go build -o $(DIST_DIR)/$(BINARY_NAME)-windows-amd64.exe main.go
-	GOOS=windows GOARCH=arm64 go build -o $(DIST_DIR)/$(BINARY_NAME)-windows-arm64.exe main.go
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o $(DIST_DIR)/$(BINARY_NAME)-windows-amd64.exe main.go
+	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o $(DIST_DIR)/$(BINARY_NAME)-windows-arm64.exe main.go
 
 lint:
 	golangci-lint run ./...
