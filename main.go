@@ -1,7 +1,13 @@
 package main
 
-import "github.com/gausszhou/hardfetch/cmd"
+import (
+	"log"
+
+	"github.com/gausszhou/hardfetch/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	if err := cmd.Execute(); err != nil {
+		log.Fatal(err)
+	}
 }
