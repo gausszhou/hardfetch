@@ -170,3 +170,20 @@ case "--flag", "-f":
 ```bash
 ./hardfetch -d   # or --debug
 ```
+
+### Release Process
+
+1. Switch to `master` and sync with remote:
+   ```bash
+   git checkout master
+   git pull origin master
+   ```
+2. Push a `v`-prefixed tag to trigger release:
+   ```bash
+   git tag v1.0.0  # replace with actual version
+   git push origin v1.0.0
+   ```
+3. Switch back to `develop`:
+   ```bash
+   git checkout develop
+   ```
